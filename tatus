@@ -1,0 +1,1752 @@
+[33mcommit 0ce12c8e4439a0840b58373750090c996f69b92b[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m
+Author: Ganesh kumar <ganeshkumar828737@gmail.com>
+Date:   Sat Nov 2 17:22:37 2024 +0530
+
+    New Changes
+
+[1mdiff --git a/config.js b/config.js[m
+[1mindex c5d98d96..cf5bc482 100644[m
+[1m--- a/config.js[m
+[1m+++ b/config.js[m
+[36m@@ -1,12 +1,21 @@[m
+ const config = {[m
+   db: {[m
+     /* don't expose password or any sensitive info, done only for demo */[m
+[31m-    host: "192.168.0.157",[m
+[32m+[m[32m    host: "192.168.0.158",[m
+     user: "ssipl_serveradmin",[m
+     password: "Sporada@2014",[m
+     multipleStatements: true,[m
+     database: "ssipl_clouddb1",[m
+[31m-    connectionLimit: 10000,[m
+[32m+[m[32m    connectionLimit: 5000,[m
+[32m+[m[32m  },[m
+[32m+[m[32m  db1: {[m
+[32m+[m[32m    /* don't expose password or any sensitive info, done only for demo */[m
+[32m+[m[32m    host: "192.168.0.158",[m
+[32m+[m[32m    user: "ssipl_serveradmin",[m
+[32m+[m[32m    password: "Sporada@2014",[m
+[32m+[m[32m    multipleStatements: true,[m
+[32m+[m[32m    database: "ssipl_clouddb1",[m
+[32m+[m[32m    connectionLimit: 5000,[m
+   },[m
+   folderpath : {[m
+     serverip : "192.168.0.198",[m
+[36m@@ -17,5 +26,6 @@[m [mconst config = {[m
+   sitecontrollerpath : "\\\\192.168.0.198\\volumes\\SITECONTROLLER\\Site_Controller",[m
+   deviceinfopath : 'http://192.168.0.166:8002',[m
+   listPerPage: 15,[m
+[32m+[m[32m  eventlistpage: 20,[m
+ };[m
+ module.exports = config;[m
+\ No newline at end of file[m
+[1mdiff --git a/helper.js b/helper.js[m
+[1mindex 2d16a2a7..1de604ab 100644[m
+[1m--- a/helper.js[m
+[1m+++ b/helper.js[m
+[36m@@ -100,7 +100,7 @@[m [masync function getSuccessResponse(code,message,Value,secret)[m
+       {[m
+ [m
+         const encryptedResponse = encrypt(returnstr,secret);[m
+[31m-        console.log("returnstr=>"+JSON.stringify(encryptedResponse));[m
+[32m+[m[32m        // console.log("returnstr=>"+JSON.stringify(encryptedResponse));[m
+         return {encryptedResponse};[m
+       }[m
+       else[m
+[36m@@ -152,7 +152,7 @@[m [masync function getErrorResponse(code,message,modulename,secret)[m
+       {[m
+ [m
+         const encryptedResponse = encrypt(returnstr,secret);[m
+[31m-        console.log("returnstr=>"+JSON.stringify(encryptedResponse));[m
+[32m+[m[32m        // console.log("returnstr=>"+JSON.stringify(encryptedResponse));[m
+         return {encryptedResponse};[m
+       }[m
+       else[m
+[36m@@ -228,10 +228,22 @@[m [mfunction getEncryptionKey() {[m
+   return secretKey;[m
+ }[m
+ [m
+[31m-function getOffset(currentPage = 1, listPerPage) {[m
+[32m+[m[32mfunction getOffset(currentPage, listPerPage) {[m
+[32m+[m[32m  if(currentPage ==null){[m
+[32m+[m[32m    currentPage = 1[m
+[32m+[m[32m  }[m
+   return (currentPage - 1) * [listPerPage];[m
+ }[m
+ [m
+[32m+[m[32mfunction getOffset1(currentPage , listPerPage) {[m
+[32m+[m[32m  if(currentPage == 1){[m
+[32m+[m[32m  return (currentPage) * [listPerPage];[m
+[32m+[m[32m  }[m
+[32m+[m[32m  else{[m
+[32m+[m[32m    return (currentPage) * [listPerPage];[m
+[32m+[m[32m  }[m
+[32m+[m[32m}[m
+[32m+[m
+ [m
+ function emptyOrRows(rows) {[m
+   if (!rows) {[m
+[36m@@ -247,6 +259,7 @@[m [mmodule.exports = {[m
+   getErrorResponse,[m
+   getSuccessResponse,[m
+   getOffset,[m
+[32m+[m[32m  getOffset1,[m
+   encrypt,[m
+   decrypt,[m
+   getServerSetting,[m
+[1mdiff --git a/index.js b/index.js[m
+[1mindex 067eb303..b8b9ec72 100644[m
+[1m--- a/index.js[m
+[1m+++ b/index.js[m
+[36m@@ -33,7 +33,8 @@[m [mapp.use([m
+ );[m
+ [m
+ app.use((req, res, next) => {[m
+[31m-  const timestamp = new Date().toISOString();[m
+[32m+[m[32m  const date = new Date();[m
+[32m+[m[32m  const timestamp = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;[m
+   console.log(`${timestamp} - Received request for: ${req.method} ${req.url}`);[m
+   next(); // Call the next middleware in the stack[m
+ });[m
+[1mdiff --git a/node_modules/.package-lock.json b/node_modules/.package-lock.json[m
+[1mindex afb2978e..ea6a173e 100644[m
+[1m--- a/node_modules/.package-lock.json[m
+[1m+++ b/node_modules/.package-lock.json[m
+[36m@@ -40,6 +40,11 @@[m
+       "resolved": "https://registry.npmjs.org/@gar/promisify/-/promisify-1.1.3.tgz",[m
+       "integrity": "sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw=="[m
+     },[m
+[32m+[m[32m    "node_modules/@ioredis/commands": {[m
+[32m+[m[32m      "version": "1.2.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/@ioredis/commands/-/commands-1.2.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-Sx1pU8EM64o2BrqNpEO1CNLtKQwyhuXuqyfH7oGKCk+1a33d2r5saW8zNwm3j6BTExtjrv2BxTgzzkMwts6vGg=="[m
+[32m+[m[32m    },[m
+     "node_modules/@isaacs/cliui": {[m
+       "version": "8.0.2",[m
+       "resolved": "https://registry.npmjs.org/@isaacs/cliui/-/cliui-8.0.2.tgz",[m
+[36m@@ -1486,6 +1491,14 @@[m
+         "node": "*"[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/cluster-key-slot": {[m
+[32m+[m[32m      "version": "1.1.2",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/cluster-key-slot/-/cluster-key-slot-1.1.2.tgz",[m
+[32m+[m[32m      "integrity": "sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==",[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": ">=0.10.0"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     "node_modules/color": {[m
+       "version": "3.2.1",[m
+       "resolved": "https://registry.npmjs.org/color/-/color-3.2.1.tgz",[m
+[36m@@ -3174,6 +3187,50 @@[m
+       "resolved": "https://registry.npmjs.org/ini/-/ini-1.3.8.tgz",[m
+       "integrity": "sha512-JV/yugV2uzW5iMRSiZAyDtQd+nxtUnjeLt0acNdw98kKLrvuRVyB80tsREOE7yvGVgalhZ6RNXCmEHkUKBKxew=="[m
+     },[m
+[32m+[m[32m    "node_modules/ioredis": {[m
+[32m+[m[32m      "version": "5.4.1",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/ioredis/-/ioredis-5.4.1.tgz",[m
+[32m+[m[32m      "integrity": "sha512-2YZsvl7jopIa1gaePkeMtd9rAcSjOOjPtpcLlOeusyO+XH2SK5ZcT+UCrElPP+WVIInh2TzeI4XW9ENaSLVVHA==",[m
+[32m+[m[32m      "dependencies": {[m
+[32m+[m[32m        "@ioredis/commands": "^1.1.1",[m
+[32m+[m[32m        "cluster-key-slot": "^1.1.0",[m
+[32m+[m[32m        "debug": "^4.3.4",[m
+[32m+[m[32m        "denque": "^2.1.0",[m
+[32m+[m[32m        "lodash.defaults": "^4.2.0",[m
+[32m+[m[32m        "lodash.isarguments": "^3.1.0",[m
+[32m+[m[32m        "redis-errors": "^1.2.0",[m
+[32m+[m[32m        "redis-parser": "^3.0.0",[m
+[32m+[m[32m        "standard-as-callback": "^2.1.0"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": ">=12.22.0"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "funding": {[m
+[32m+[m[32m        "type": "opencollective",[m
+[32m+[m[32m        "url": "https://opencollective.com/ioredis"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "node_modules/ioredis/node_modules/debug": {[m
+[32m+[m[32m      "version": "4.3.6",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/debug/-/debug-4.3.6.tgz",[m
+[32m+[m[32m      "integrity": "sha512-O/09Bd4Z1fBrU4VzkhFqVgpPzaGbw6Sm9FEkBT1A/YBXQFGuuSxa1dN2nxgxS34JmKXqYx8CZAwEVoJFImUXIg==",[m
+[32m+[m[32m      "dependencies": {[m
+[32m+[m[32m        "ms": "2.1.2"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": ">=6.0"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "peerDependenciesMeta": {[m
+[32m+[m[32m        "supports-color": {[m
+[32m+[m[32m          "optional": true[m
+[32m+[m[32m        }[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "node_modules/ioredis/node_modules/ms": {[m
+[32m+[m[32m      "version": "2.1.2",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/ms/-/ms-2.1.2.tgz",[m
+[32m+[m[32m      "integrity": "sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w=="[m
+[32m+[m[32m    },[m
+     "node_modules/ip-address": {[m
+       "version": "9.0.5",[m
+       "resolved": "https://registry.npmjs.org/ip-address/-/ip-address-9.0.5.tgz",[m
+[36m@@ -3495,11 +3552,21 @@[m
+       "resolved": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",[m
+       "integrity": "sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg=="[m
+     },[m
+[32m+[m[32m    "node_modules/lodash.defaults": {[m
+[32m+[m[32m      "version": "4.2.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/lodash.defaults/-/lodash.defaults-4.2.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-qjxPLHd3r5DnsdGacqOMU6pb/avJzdh9tFX2ymgoZE27BmjXrNy/y4LoaiTeAb+O3gL8AfpJGtqfX/ae2leYYQ=="[m
+[32m+[m[32m    },[m
+     "node_modules/lodash.includes": {[m
+       "version": "4.3.0",[m
+       "resolved": "https://registry.npmjs.org/lodash.includes/-/lodash.includes-4.3.0.tgz",[m
+       "integrity": "sha512-W3Bx6mdkRTGtlJISOvVD/lbqjTlPPUDTMnlXZFnVwi9NKJ6tiAk6LVdlhZMm17VZisqhKcgzpO5Wz91PCt5b0w=="[m
+     },[m
+[32m+[m[32m    "node_modules/lodash.isarguments": {[m
+[32m+[m[32m      "version": "3.1.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/lodash.isarguments/-/lodash.isarguments-3.1.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-chi4NHZlZqZD18a0imDHnZPrDeBbTtVN7GXMwuGdRH9qotxAjYs3aVLKc7zNOG9eddR5Ksd8rvFEBc9SsggPpg=="[m
+[32m+[m[32m    },[m
+     "node_modules/lodash.isboolean": {[m
+       "version": "3.0.3",[m
+       "resolved": "https://registry.npmjs.org/lodash.isboolean/-/lodash.isboolean-3.0.3.tgz",[m
+[36m@@ -5421,6 +5488,25 @@[m
+         "node": ">=0.4"[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/redis-errors": {[m
+[32m+[m[32m      "version": "1.2.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/redis-errors/-/redis-errors-1.2.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-1qny3OExCf0UvUV/5wpYKf2YwPcOqXzkwKKSmKHiE6ZMQs5heeE/c8eXK+PNllPvmjgAbfnsbpkGZWy8cBpn9w==",[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": ">=4"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "node_modules/redis-parser": {[m
+[32m+[m[32m      "version": "3.0.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/redis-parser/-/redis-parser-3.0.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-DJnGAeenTdpMEH6uAJRK/uiyEIH9WVsUmoLwzudwGJUwZPp80PDBWPHXSAGNPwNvIXAbe7MSUB1zQFugFml66A==",[m
+[32m+[m[32m      "dependencies": {[m
+[32m+[m[32m        "redis-errors": "^1.0.0"[m
+[32m+[m[32m      },[m
+[32m+[m[32m      "engines": {[m
+[32m+[m[32m        "node": ">=4"[m
+[32m+[m[32m      }[m
+[32m+[m[32m    },[m
+     "node_modules/regenerator-runtime": {[m
+       "version": "0.14.1",[m
+       "resolved": "https://registry.npmjs.org/regenerator-runtime/-/regenerator-runtime-0.14.1.tgz",[m
+[36m@@ -6074,6 +6160,11 @@[m
+         "node": "*"[m
+       }[m
+     },[m
+[32m+[m[32m    "node_modules/standard-as-callback": {[m
+[32m+[m[32m      "version": "2.1.0",[m
+[32m+[m[32m      "resolved": "https://registry.npmjs.org/standard-as-callback/-/standard-as-callback-2.1.0.tgz",[m
+[32m+[m[32m      "integrity": "sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A=="[m
+[32m+[m[32m    },[m
+     "node_modules/statuses": {[m
+       "version": "2.0.1",[m
+       "resolved": "https://registry.npmjs.org/statuses/-/statuses-2.0.1.tgz",[m
+[1mdiff --git a/node_modules/@ioredis/commands/LICENSE b/node_modules/@ioredis/commands/LICENSE[m
+[1mnew file mode 100644[m
+[1mindex 00000000..8931fa92[m
+[1m--- /dev/null[m
+[1m+++ b/node_modules/@ioredis/commands/LICENSE[m
+[36m@@ -0,0 +1,23 @@[m
+[32m+[m[32mThe MIT License (MIT)[m
+[32m+[m
+[32m+[m[32mCopyright (c) 2022 Zihua Li[m
+[32m+[m[32mCopyright (c) 2015 NodeRedis[m
+[32m+[m
+[32m+[m[32mPermission is hereby granted, free of charge, to any person obtaining a copy[m
+[32m+[m[32mof this software and associated documentation files (the "Software"), to deal[m
+[32m+[m[32min the Software without restriction, including without limitation the rights[m
+[32m+[m[32mto use, copy, modify, merge, publish, distribute, sublicense, and/or sell[m
+[32m+[m[32mcopies of the Software, and to permit persons to whom the Software is[m
+[32m+[m[32mfurnished to do so, subject to the following conditions:[m
+[32m+[m
+[32m+[m[32mThe above copyright notice and this permission notice shall be included in all[m
+[32m+[m[32mcopies or substantial portions of the Software.[m
+[32m+[m
+[32m+[m[32mTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR[m
+[32m+[m[32mIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,[m
+[32m+[m[32mFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE[m
+[32m+[m[32mAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER[m
+[32m+[m[32mLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,[m
+[32m+[m[32mOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE[m
+[32m+[m[32mSOFTWARE.[m
+[32m+[m
+[1mdiff --git a/node_modules/@ioredis/commands/README.md b/node_modules/@ioredis/commands/README.md[m
+[1mnew file mode 100644[m
+[1mindex 00000000..26496964[m
+[1m--- /dev/null[m
+[1m+++ b/node_modules/@ioredis/commands/README.md[m
+[36m@@ -0,0 +1,43 @@[m
+[32m+[m[32m# Redis Commands[m
+[32m+[m
+[32m+[m[32mThis module exports all the commands that Redis supports.[m
+[32m+[m
+[32m+[m[32m## Install[m
+[32m+[m
+[32m+[m[32m```shell[m
+[32m+[m[32m$ npm install @ioredis/commands[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m## Usage[m
+[32m+[m
+[32m+[m[32m```js[m
+[32m+[m[32mconst commands = require('@ioredis/commands');[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m`.list` is an array contains all the lowercased commands:[m
+[32m+[m
+[32m+[m[32m```js[m
+[32m+[m[32mcommands.list.forEach((command) => {[m
+[32m+[m[32m  console.log(command);[m
+[32m+[m[32m});[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m`.exists()` is used to check if the command exists:[m
+[32m+[m
+[32m+[m[32m```js[m
+[32m+[m[32mcommands.exists('set') // true[m
+[32m+[m[32mcommands.exists('other-command') // false[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m`.hasFlag()` is used to check if the command has the flag:[m
+[32m+[m
+[32m+[m[32m```js[m
+[32m+[m[32mcommands.hasFlag('set', 'readonly') // false[m
+[32m+[m[32m```[m
+[32m+[m
+[32m+[m[32m`.getKeyIndexes()` is used to get the indexes of keys in the command arguments:[m
+[32m+[m
+[32m+[m[32m```js[m
+[32m+[m[32mcommands.getKeyIndexes('set', ['key', 'value']) // [0][m
+[32m+[m[32mcommands.getKeyIndexes('mget', ['key1', 'key2']) // [0, 1][m
+[32m+[m[32m```[m
+[1mdiff --git a/node_modules/@ioredis/commands/built/commands.json b/node_modules/@ioredis/commands/built/commands.json[m
+[1mnew file mode 100644[m
+[1mindex 00000000..ec304f17[m
+[1m--- /dev/null[m
+[1m+++ b/node_modules/@ioredis/commands/built/commands.json[m
+[36m@@ -0,0 +1,2447 @@[m
+[32m+[m[32m{[m
+[32m+[m[32m    "acl": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "append": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "asking": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "auth": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast",[m
+[32m+[m[32m            "no_auth",[m
+[32m+[m[32m            "allow_busy"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bgrewriteaof": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "admin",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "no_async_loading"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bgsave": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "admin",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "no_async_loading"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bitcount": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bitfield": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bitfield_ro": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bitop": {[m
+[32m+[m[32m        "arity": -4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 2,[m
+[32m+[m[32m        "keyStop": -1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bitpos": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "blmove": {[m
+[32m+[m[32m        "arity": 6,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "blocking"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "blmpop": {[m
+[32m+[m[32m        "arity": -5,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "blocking",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "blpop": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "blocking"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "brpop": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "blocking"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "brpoplpush": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "blocking"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bzmpop": {[m
+[32m+[m[32m        "arity": -5,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "blocking",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bzpopmax": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "blocking",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "bzpopmin": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "blocking",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "client": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "cluster": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "command": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "config": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "copy": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "dbsize": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "debug": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "admin",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "decr": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "decrby": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "del": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "discard": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast",[m
+[32m+[m[32m            "allow_busy"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "dump": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "echo": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "eval": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "skip_monitor",[m
+[32m+[m[32m            "no_mandatory_keys",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "eval_ro": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "skip_monitor",[m
+[32m+[m[32m            "no_mandatory_keys",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "evalsha": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "skip_monitor",[m
+[32m+[m[32m            "no_mandatory_keys",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "evalsha_ro": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "skip_monitor",[m
+[32m+[m[32m            "no_mandatory_keys",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "exec": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "skip_slowlog"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "exists": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "expire": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "expireat": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "expiretime": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "failover": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "admin",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "stale"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "fcall": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "skip_monitor",[m
+[32m+[m[32m            "no_mandatory_keys",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "fcall_ro": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "skip_monitor",[m
+[32m+[m[32m            "no_mandatory_keys",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "flushall": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "flushdb": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "function": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "geoadd": {[m
+[32m+[m[32m        "arity": -5,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "geodist": {[m
+[32m+[m[32m        "arity": -4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "geohash": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "geopos": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "georadius": {[m
+[32m+[m[32m        "arity": -6,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "georadius_ro": {[m
+[32m+[m[32m        "arity": -6,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "georadiusbymember": {[m
+[32m+[m[32m        "arity": -5,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "georadiusbymember_ro": {[m
+[32m+[m[32m        "arity": -5,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "geosearch": {[m
+[32m+[m[32m        "arity": -7,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "geosearchstore": {[m
+[32m+[m[32m        "arity": -8,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "get": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "getbit": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "getdel": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "getex": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "getrange": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "getset": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hdel": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hello": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast",[m
+[32m+[m[32m            "no_auth",[m
+[32m+[m[32m            "allow_busy"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hexists": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hget": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hgetall": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hincrby": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hincrbyfloat": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hkeys": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hlen": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hmget": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hmset": {[m
+[32m+[m[32m        "arity": -4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hrandfield": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hscan": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hset": {[m
+[32m+[m[32m        "arity": -4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hsetnx": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hstrlen": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "hvals": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "incr": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "incrby": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "incrbyfloat": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "info": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "keys": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lastsave": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "latency": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lcs": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lindex": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "linsert": {[m
+[32m+[m[32m        "arity": 5,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "llen": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lmove": {[m
+[32m+[m[32m        "arity": 5,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lmpop": {[m
+[32m+[m[32m        "arity": -4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lolwut": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lpop": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lpos": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lpush": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lpushx": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lrange": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lrem": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "lset": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "ltrim": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "memory": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "mget": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "migrate": {[m
+[32m+[m[32m        "arity": -6,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "movablekeys"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 3,[m
+[32m+[m[32m        "keyStop": 3,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "module": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "monitor": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "admin",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "move": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "mset": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -1,[m
+[32m+[m[32m        "step": 2[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "msetnx": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -1,[m
+[32m+[m[32m        "step": 2[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "multi": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast",[m
+[32m+[m[32m            "allow_busy"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "object": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "persist": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pexpire": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pexpireat": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pexpiretime": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pfadd": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pfcount": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pfdebug": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom",[m
+[32m+[m[32m            "admin"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 2,[m
+[32m+[m[32m        "keyStop": 2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pfmerge": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": -1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pfselftest": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "admin"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "ping": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "psetex": {[m
+[32m+[m[32m        "arity": 4,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "denyoom"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "psubscribe": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "pubsub",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "psync": {[m
+[32m+[m[32m        "arity": -3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "admin",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "no_async_loading",[m
+[32m+[m[32m            "no_multi"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pttl": {[m
+[32m+[m[32m        "arity": 2,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 1,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "publish": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "pubsub",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "pubsub": {[m
+[32m+[m[32m        "arity": -2,[m
+[32m+[m[32m        "flags": [],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "punsubscribe": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "pubsub",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "quit": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast",[m
+[32m+[m[32m            "no_auth",[m
+[32m+[m[32m            "allow_busy"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "randomkey": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "readonly"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "readonly": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "readwrite": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "rename": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "renamenx": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "write",[m
+[32m+[m[32m            "fast"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 1,[m
+[32m+[m[32m        "keyStop": 2,[m
+[32m+[m[32m        "step": 1[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "replconf": {[m
+[32m+[m[32m        "arity": -1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "admin",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "allow_busy"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "replicaof": {[m
+[32m+[m[32m        "arity": 3,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "admin",[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "no_async_loading"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m[32m        "step": 0[m
+[32m+[m[32m    },[m
+[32m+[m[32m    "reset": {[m
+[32m+[m[32m        "arity": 1,[m
+[32m+[m[32m        "flags": [[m
+[32m+[m[32m            "noscript",[m
+[32m+[m[32m            "loading",[m
+[32m+[m[32m            "stale",[m
+[32m+[m[32m            "fast",[m
+[32m+[m[32m            "no_auth",[m
+[32m+[m[32m            "allow_busy"[m
+[32m+[m[32m        ],[m
+[32m+[m[32m        "keyStart": 0,[m
+[32m+[m[32m        "keyStop": 0,[m
+[32m+[m
