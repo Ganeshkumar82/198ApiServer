@@ -61,6 +61,22 @@ async function spcall1(sql, params) {
   }
 }
 
+
+async function Query(sql, params){
+  const connection = await pool.getConnection();
+  try {
+      const [rows] = await connection.query(sql, params);
+      return rows;
+  }
+  catch (err) {
+      console.error(err);
+  } finally {
+      connection.release();
+  }
+}
+
+
+
 const redis = new Redis({
   host: '192.168.0.245', // Replace with your Redis host
   port: 6379, // Replace with your Redis port
@@ -75,4 +91,5 @@ module.exports = {
   pool,
   redis,
   pool1,
+  Query
 }

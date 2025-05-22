@@ -69,6 +69,9 @@ async function login(user,clientIp){
     if(user.hasOwnProperty('Secret') == false){
       return helper.getErrorResponse(false,"Secret key missing. Please provide the Secret key","LOGIN","");
     }
+    if(user.hasOwnProperty('querystring') == false){
+      return helper.getErrorResponse(false,"querystring missing. Please provide the querystring","LOGIN","");
+    }
   const ApiCheck = helper.checkAPIKey(user.APIKey,user.Secret);
   // console.log("user.APIKey=>"+user.APIKey);
   // console.log("user.Secret=>"+user.Secret);
@@ -86,7 +89,7 @@ async function login(user,clientIp){
     return helper.getErrorResponse(false,"API key Invalid. Please provide the valid API key","LOGIN",user.Secret);
   }
   //End of Validation 1
-
+ 
   //Begin Validation 2. decrypt querystring data
   // console.log("querystring=>"+user.querystring);
   var queryData;
@@ -104,6 +107,12 @@ var utype  = 3;
   //Validation RULE 3. Check if the inout is email id or user name
   var isEmailID = false;
   var isphone = false;
+  if(queryData.hasOwnProperty('username') == false){
+    return helper.getErrorResponse(false,"Username missing. Please provide the Username","LOGIN",user.Secret);
+  }
+  if(queryData.hasOwnProperty('password') == false){
+    return helper.getErrorResponse(false,"Password missing. Please provide the Password","LOGIN",user.Secret);
+  }
   if (queryData.username.indexOf('.') !== -1 || queryData.username.indexOf('@') !== -1) {
     utype =1;
     isEmailID = true;

@@ -715,7 +715,7 @@ async function getEventAction(page, event) {
       DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, el.feedback, el.Created_by, em.Alertmessage, 
       em.IsHumanDetected, cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, 
       dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-      dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3, dc.User_role1, dc.User_role2, dc.User_role3, bm.Branch_id, bm.Branch_name, bm.site_starttime, 
+      dc.Name1, dc.Contact_mobile1, dc.Contact_Email1, bm.Branch_id, bm.Branch_name, bm.site_starttime, 
       bm.contact_person, eu.user_id, cm.Camera_Status, es.eventpath,
       CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id AND status = 1 AND ECStype = 'Two way') THEN TRUE ELSE FALSE END AS twoway_status,
       CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id AND status = 1 AND ECStype = 'PA system') THEN TRUE ELSE FALSE END AS oneway_status 
@@ -775,16 +775,7 @@ async function getEventAction(page, event) {
           twoway_status: event.twoway_status,
           oneway_status: event.oneway_status,
           feedback: event.feedback,
-          userid: event.Created_by,
-          Name2: event.Name2,
-          Contact_mobile2: event.Contact_mobile2,
-          Contact_Email2: event.Contact_Email2,
-          Name3: event.Name3,
-          Contact_mobile3: event.Contact_mobile3, 
-          Contact_Email3: event.Contact_Email3,
-          Userrole1: event.User_role1,
-          Userrole2: event.User_role2,
-          Userrole3: event.User_role3,
+          userid: event.Created_by
         };
       })
     );
@@ -1344,6 +1335,120 @@ async function addEventFeedback(event) {
 
 
 
+async function addEmergencyContact(event) {
+  let secret;
+  try {
+    if (!event.hasOwnProperty('STOKEN')) {
+      return helper.getErrorResponse(false, "Login sessiontoken missing.", "CUSTOMER ADD EVENT FEEDBACK", "");
+    }
+
+    if (event.STOKEN.length > 50 || event.STOKEN.length < 30) {
+      return helper.getErrorResponse(false, "Login sessiontoken Size Error.", "CUSTOMER ADD EVENT FEEDBACK", "");
+    }
+
+    const [result] = await db.spcall(
+      'CALL SP_STOKEN_CHECK(?,@result,@custid,@custname,@custemail); SELECT @result,@custid,@custname,@custemail',
+      [event.STOKEN]
+    );
+
+    const objectvalue = result[1][0];
+    const userid = objectvalue["@result"];
+
+    if (userid == null) {
+      return helper.getErrorResponse(false, "Login sessiontoken Invalid", "CUSTOMER ADD EVENT FEEDBACK", "");
+    }
+
+    if (!event.hasOwnProperty("querystring")) {
+      return helper.getErrorResponse(false, "Querystring missing.", "CUSTOMER ADD EVENT FEEDBACK", "");
+    }
+
+     secret = event.STOKEN.substring(0, 16);
+
+    let querydata;
+    try {
+      querydata = await helper.decrypt(event.querystring, secret);
+    } catch (ex) {
+      return helper.getErrorResponse(false, "Querystring error", "CUSTOMER ADD EVENT FEEDBACK", secret);
+    }
+
+    try {
+      querydata = JSON.parse(querydata);
+    } catch (ex) {
+      return helper.getErrorResponse(false, "Querystring JSON error", "CUSTOMER ADD EVENT FEEDBACK", secret);
+    }
+
+    if(querydata.hasOwnProperty('branchid') == false){
+      return helper.getErrorResponse(false, "Branch id missing.", "CUSTOMER ADD CONTACT",secret);
+    }
+    if(querydata.hasOwnProperty('contactname1') == false){
+      return helper.getErrorResponse(false, "Contact Name 1 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('contactphone1') == false){
+      return helper.getErrorResponse(false, "Contact Phone 1 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('contactemail1') == false){
+      return helper.getErrorResponse(false, "Contact Email 1 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('contactname2') == false){
+      return helper.getErrorResponse(false, "Contact Name 2 missing.", "CUSTOMER ADD CONTACT",secret);
+    }
+    if(querydata.hasOwnProperty('contactphone2') == false){
+      return helper.getErrorResponse(false, "Contact Phone 2 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('contactemail2') == false){
+      return helper.getErrorResponse(false, "Contact Email 2 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('contactname3') == false){
+      return helper.getErrorResponse(false, "Contact Name 3 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('contactphone3') == false){
+      return helper.getErrorResponse(false, "Contact Phone 3 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('contactemail3') == false){
+      return helper.getErrorResponse(false, "Contact Email 3 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('userrole1') == false){
+      return helper.getErrorResponse(false, "User role 1 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('userrole2') == false){
+      return helper.getErrorResponse(false, "User role 2 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    if(querydata.hasOwnProperty('userrole3') == false){
+      return helper.getErrorResponse(false, "User role 3 missing.", "CUSTOMER ADD CONTACT", secret);
+    }
+    const sql1 = await db.query(`select Dept_id from deptmaster where branch_id = ${querydata.branchid}`);
+    if(sql1.length > 0){  
+      const deptid = sql1[0].Dept_id;
+     const [sql] = await db.spcall("CALL SP_DEPTCONTACT_ADD_OR_UPDATE(?,?,?,?,?,?,?,?,?,?,?,?,?,?,@p_cid); select @p_cid;", [
+        deptid,
+        querydata.contactname1,
+        querydata.contactname2,
+        querydata.contactname3,
+        querydata.contactphone1,
+        querydata.contactphone2,
+        querydata.contactphone3,
+        querydata.contactemail1,
+        querydata.contactemail2,
+        querydata.contactemail3,
+        querydata.userrole1,
+        querydata.userrole2,
+        querydata.userrole3,  
+        userid
+      ]);
+      const objectvalue = sql[1][0];
+      const contactid = objectvalue["@p_cid"];
+      if(contactid != null ){
+        return helper.getSuccessResponse(true, "Contact details saved successfully.", contactid,secret);
+      }else{
+        return helper.getErrorResponse(true, "Error Adding the contact", "ADD CONTACT",secret);
+      }
+  }else{
+    return helper.getErrorResponse(true, "Error Adding the contact", "ADD CONTACT",secret);
+  }
+}catch (er) {
+    return helper.getErrorResponse(false, "Internal error. Please contact Administration", er.message,secret);
+  }
+}
 
 //###################################################################################################################################################################################################
 //######################## ADD EVENT FEEDBACK TO THE EVENT LOG ###########################################################################################################################################################################
@@ -1466,7 +1571,7 @@ if(querydata.hasOwnProperty("eventid")==false){
    let sql ='';
    let rows='';
 
-  sql=`SELECT em.Event_id,em.IsHumanDetected, el.status FROM eventmaster em JOIN eventlog el ON em.Event_ID = el.Event_ID WHERE em.Event_ID = ${querydata.eventid}`;
+  sql=`SELECT em.Event_id,em.IsHumanDetected, el.status FROM eventmaster em JOIN eventlog el ON em.Event_ID = el.Event_ID WHERE em.Event_ID = ?`,[querydata.eventid];
   rows = await db.query(sql);
 
   if (rows!="")
@@ -2017,105 +2122,98 @@ async function Eventlistfilter(page, event) {
       //   eventuserstatus = `(SELECT * FROM eventuser_${archiveDate} UNION ALL SELECT * FROM eventuser)`;
       //   }
       // }
-      const offset = helper.getOffset(page, config.eventlistpage);
-      var sqlParams = [];
-      const startTime = new Date(querydata.starttime);
-      const endTime = new Date(querydata.endtime);
-      const currentDate = new Date();
-      const currentDay = helper.formatDate(currentDate, 'yyyyMMdd');
-      const currentHour = currentDate.getHours();
-      const previousDay = helper.formatDate(new Date(Date.now() - 86400000), 'yyyyMMdd');
-      
-      
-      // Decide archive date based on event start time & current time
-      let archiveDate;
-      if (startTime.getHours() >= 12) {
-        let nextDay = new Date(startTime);
-        nextDay.setDate(nextDay.getDate() + 1);
-        archiveDate = helper.formatDate(nextDay, 'yyyyMMdd');
-      } else {
-        archiveDate = helper.formatDate(startTime, 'yyyyMMdd');
-      }
-      
-      // Determine which tables to use.
-      const startDay = helper.formatDate(startTime, 'yyyyMMdd');
-      const endDay = helper.formatDate(endTime, 'yyyyMMdd');
-      
-      let eventTable, logTable, whatsappTable, eventaistatus, eventuserstatus;
-      
-      if (startDay < currentDay && endDay < currentDay) {
-        // Searching for past events - Use archive tables
-        if (currentHour < 12 && startDay == previousDay) {
-          // If it's before noon and searching for yesterday's data, use live tables
-          eventTable = `eventmaster`;
-          logTable = `eventlog`;
-          whatsappTable = `whatsapplog`;
-          eventaistatus = `eventaistatus`;
-          eventuserstatus = `eventuser`;
-        } else {
-          // Otherwise, use archived tables
-          eventTable = `eventmaster_${archiveDate}`;
-          logTable = `eventlog_${archiveDate}`;
-          whatsappTable = `whatsapplog_${archiveDate}`;
-          eventaistatus = `eventaistatus_${archiveDate}`;
-          eventuserstatus = `eventuser_${archiveDate}`;
-        }
-      } else if (startDay == currentDay && endDay == currentDay) {
-        // Current day's data - Use live tables
-        if (currentHour >= 12 && currentHour <= 24 && startTime.getHours() < 12 && endTime.getHours() < 12) {
-          eventTable = `eventmaster_${currentDay}`;
-          logTable = `eventlog_${currentDay}`;
-          whatsappTable = `whatsapplog_${currentDay}`;
-          eventaistatus = `eventaistatus_${currentDay}`;
-          eventuserstatus = `eventuser_${currentDay}`;
-        }else  if (currentHour >= 12 && currentHour <= 24 && startTime.getHours() < 12 && endTime.getHours() >= 12) {
-          eventTable = `(SELECT * FROM eventmaster_${currentDay} UNION ALL SELECT * FROM eventmaster)`;
-          logTable = `(SELECT * FROM eventlog_${currentDay} UNION ALL SELECT * FROM eventlog)`;
-          whatsappTable = `(SELECT * FROM whatsapplog_${currentDay} UNION ALL SELECT * FROM whatsapplog)`;
-          eventaistatus = `(SELECT * FROM eventaistatus_${currentDay} UNION ALL SELECT * FROM eventaistatus)`;
-          eventuserstatus = `(SELECT * FROM eventuser_${currentDay} UNION ALL SELECT * FROM eventuser)`;
-        }
-        else {
-        eventTable = `eventmaster`;
-        logTable = `eventlog`;
-        whatsappTable = `whatsapplog`;
-        eventaistatus = `eventaistatus`;
-        eventuserstatus = `eventuser`;
-        }
-      } else if (startDay > currentDay && endDay > currentDay) {
-        // Future dates - Use live tables
-        eventTable = `eventmaster`;
-        logTable = `eventlog`;
-        whatsappTable = `whatsapplog`;
-        eventaistatus = `eventaistatus`;
-        eventuserstatus = `eventuser`;
-      } else {
-        if (currentHour < 12) {
-          // Before noon, use live tables even if the range spans archived data
-          eventTable = 'eventmaster';
-          logTable = 'eventlog';
-          whatsappTable = 'whatsapplog';
-          eventaistatus = 'eventaistatus';
-          eventuserstatus = `eventuser`;
-        } else {
-          // Use UNION if spanning both archived and live data
-          eventTable = `(SELECT * FROM eventmaster_${archiveDate} UNION ALL SELECT * FROM eventmaster)`;
-          logTable = `(SELECT * FROM eventlog_${archiveDate} UNION ALL SELECT * FROM eventlog)`;
-          whatsappTable = `(SELECT * FROM whatsapplog_${archiveDate} UNION ALL SELECT * FROM whatsapplog)`;
-          eventaistatus = `(SELECT * FROM eventaistatus_${archiveDate} UNION ALL SELECT * FROM eventaistatus)`;
-          eventuserstatus = `(SELECT * FROM eventuser_${archiveDate} UNION ALL SELECT * FROM eventuser)`;
-        }
-      }
+const offset = helper.getOffset(page, config.eventlistpage);
+var sqlParams = [];
+const startTime = new Date(querydata.starttime);
+const endTime = new Date(querydata.endtime);
+const currentDate = new Date();
+const currentDay = helper.formatDate(currentDate, 'yyyyMMdd');
+const currentHour = currentDate.getHours();
+const previousDay = helper.formatDate(new Date(Date.now() - 86400000), 'yyyyMMdd');
+
+
+// Decide archive date based on event start time & current time
+let archiveDate;
+if (startTime.getHours() >= 12) {
+  let nextDay = new Date(startTime);
+  nextDay.setDate(nextDay.getDate() + 1);
+  archiveDate = helper.formatDate(nextDay, 'yyyyMMdd');
+} else {
+  archiveDate = helper.formatDate(startTime, 'yyyyMMdd');
+}
+
+// Determine which tables to use.
+const startDay = helper.formatDate(startTime, 'yyyyMMdd');
+const endDay = helper.formatDate(endTime, 'yyyyMMdd');
+
+let eventTable, logTable, whatsappTable, eventaistatus, eventuserstatus;
+
+if (startDay < currentDay && endDay < currentDay) {
+  // Searching for past events - Use archive tables
+  if (currentHour < 12 && startDay == previousDay) {
+    // If it's before noon and searching for yesterday's data, use live tables
+    eventTable = `eventmaster`;
+    logTable = `eventlog`;
+    whatsappTable = `whatsapplog`;
+    eventaistatus = `eventaistatus`;
+    eventuserstatus = `eventuser`;
+  } else {
+    // Otherwise, use archived tables
+    eventTable = `eventmaster_${archiveDate}`;
+    logTable = `eventlog_${archiveDate}`;
+    whatsappTable = `whatsapplog_${archiveDate}`;
+    eventaistatus = `eventaistatus_${archiveDate}`;
+    eventuserstatus = `eventuser_${archiveDate}`;
+  }
+} else if (startDay == currentDay && endDay == currentDay) {
+  // Current day's data - Use live tables
+  if (currentHour >= 12 && currentHour <= 24 && startTime.getHours() < 12 && endTime.getHours() < 12) {
+    eventTable = `eventmaster_${currentDay}`;
+    logTable = `eventlog_${currentDay}`;
+    whatsappTable = `whatsapplog_${currentDay}`;
+    eventaistatus = `eventaistatus_${currentDay}`;
+    eventuserstatus = `eventuser_${currentDay}`;
+  }else {
+  eventTable = `eventmaster`;
+  logTable = `eventlog`;
+  whatsappTable = `whatsapplog`;
+  eventaistatus = `eventaistatus`;
+  eventuserstatus = `eventuser`;
+  }
+} else if (startDay > currentDay && endDay > currentDay) {
+  // Future dates - Use live tables
+  eventTable = `eventmaster`;
+  logTable = `eventlog`;
+  whatsappTable = `whatsapplog`;
+  eventaistatus = `eventaistatus`;
+  eventuserstatus = `eventuser`;
+} else {
+  if (currentHour < 12) {
+    // Before noon, use live tables even if the range spans archived data
+    eventTable = 'eventmaster';
+    logTable = 'eventlog';
+    whatsappTable = 'whatsapplog';
+    eventaistatus = 'eventaistatus';
+    eventuserstatus = `eventuser`;
+  } else {
+    // Use UNION if spanning both archived and live data
+    eventTable = `(SELECT * FROM eventmaster_${archiveDate} UNION ALL SELECT * FROM eventmaster)`;
+    logTable = `(SELECT * FROM eventlog_${archiveDate} UNION ALL SELECT * FROM eventlog)`;
+    whatsappTable = `(SELECT * FROM whatsapplog_${archiveDate} UNION ALL SELECT * FROM whatsapplog)`;
+    eventaistatus = `(SELECT * FROM eventaistatus_${archiveDate} UNION ALL SELECT * FROM eventaistatus)`;
+    eventuserstatus = `(SELECT * FROM eventuser_${archiveDate} UNION ALL SELECT * FROM eventuser)`;
+  }
+}
 
       
       let clSQL = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, 
         DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected,
         cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port,
         dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-        dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.Branch_id siteid, bm.site_starttime Notifytime, bm.contact_person, 
+        dc.Name1, dc.Contact_mobile1, dc.Contact_Email1, bm.Branch_name,bm.Branch_id siteid, bm.site_starttime Notifytime, bm.contact_person, 
         cm.Camera_Status,
         CASE WHEN el.Event_ID IS NOT NULL OR wl.Event_ID IS NOT NULL THEN 'Acknowledged' 
-        ELSE 'Unacknowledged' END AS eventstatus, el.feedback,el.Row_upd_date Acknowleged_time, eu.user_id userid, dt.branch_id
+        ELSE 'Unacknowledged' END AS eventstatus, el.feedback, eu.user_id userid, dt.branch_id
         FROM ${eventTable} em 
         JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id 
         JOIN devicemaster dm ON dm.device_id = cm.device_id  
@@ -2132,16 +2230,16 @@ async function Eventlistfilter(page, event) {
       if(querydata.customerid){
       if (querydata.customerid.startsWith('O')) {
         let organizationId = querydata.customerid.replace('O_', '');
-        clSQL += ` AND bm.Branch_ID IN (SELECT Branch_ID FROM branchmaster WHERE Customer_ID in (select Customer_id from customermaster where Organization_id in(?)))`;
+        clSQL += ` AND dt.Branch_ID IN (SELECT Branch_ID FROM branchmaster WHERE Customer_ID in (select Customer_id from customermaster where Organization_id in(?)))`;
         sqlParams.push(organizationId);
       }else {
-        clSQL += ` AND bm.Branch_ID IN (SELECT Branch_ID FROM branchmaster WHERE Customer_ID in (?))`;
+        clSQL += ` AND dt.Branch_ID IN (SELECT Branch_ID FROM branchmaster WHERE Customer_ID in (?))`;
         sqlParams.push(querydata.customerid);
       }
     }
       
       if (querydata.branchid) {
-        clSQL += ` AND bm.Branch_ID = ?`;
+        clSQL += ` AND dt.Branch_ID = ?`;
         sqlParams.push(querydata.branchid);
       }
       
@@ -2151,8 +2249,8 @@ async function Eventlistfilter(page, event) {
       }
       
       if (querydata.cameraid) {
-        clSQL += ` AND cm.Camera_ID IN(${querydata.cameraid})`;
-        // sqlParams.push(querydata.cameraid);
+        clSQL += ` AND cm.Camera_ID IN(?)`;
+        sqlParams.push(querydata.cameraid);
       }
       if(querydata.userid){
         clSQL += ` AND em.Event_id IN (select eu.Event_id from ${eventuserstatus} eu where eu.User_id = ?)`;
@@ -2175,7 +2273,7 @@ async function Eventlistfilter(page, event) {
       clSQL += ` GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset},${config.eventlistpage}`;
       
       // console(clSQL);
-      // console.log(sqlParams);
+      // console(sqlParams);
       //  console.log(clSQL);
       const rows = await db.query(clSQL, sqlParams);
       
@@ -2278,7 +2376,7 @@ async function getUnAcknoEvent(page, event) {
     let sql = `SELECT DISTINCT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
     dc.Name1, dc.Contact_mobile1, dc.Contact_Email1,dc.Name2, dc.Contact_mobile2, dc.Contact_Email2,dc.Name3, dc.Contact_mobile3, 
-    dc.Contact_Email3,dc.User_role1, dc.User_role2, dc.User_role3,bm.Branch_id,bm.Branch_name,bm.site_starttime,bm.contact_person, cm.Camera_Status, es.eventpath FROM eventmaster em JOIN eventstatus es ON es.Event_id = em.Event_ID 
+    dc.Contact_Email3,bm.Branch_id,bm.Branch_name,bm.site_starttime,bm.contact_person, cm.Camera_Status, es.eventpath FROM eventmaster em JOIN eventstatus es ON es.Event_id = em.Event_ID 
     JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
     LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id JOIN eventuser eu ON em.Event_ID = eu.Event_id AND eu.user_id = ${userid} LEFT JOIN eventlog el ON el.Event_ID = em.Event_ID LEFT JOIN whatsapplog wl ON wl.Event_id = em.Event_ID
     WHERE el.Event_ID IS NULL AND wl.Event_id IS NULL AND em.Event_Name NOT LIKE 'Tampering%' AND em.Event_Name NOT LIKE 'HDD%' AND em.Event_Name NOT LIKE 'Video%' 
@@ -2317,11 +2415,7 @@ async function getUnAcknoEvent(page, event) {
       Camera_Status: event.Camera_Status,
       imagepath: event.eventpath,
       Notifytime:event.site_starttime,
-      siteid: event.Branch_id,
-      Userrole1: event.User_role1,
-      Userrole2: event.User_role2,
-      Userrole3: event.User_role3,
-      
+      siteid: event.Branch_id
 
     }));
 
@@ -2826,82 +2920,19 @@ async function getDevEvent(page, event) {
     const offset = helper.getOffset(page, config.eventlistpage);
     // const offset1 = helper.getOffset1(page, config.listPerPage);
 
-    if (!querydata.hasOwnProperty('currentdate')) {
+   if (!querydata.hasOwnProperty('currentdate')) {
       return helper.getErrorResponse(false, "Current date missing. Please provide the currentdate", "Please enter the current date for the device event", secret);
     }
-    
-    const previousDay = helper.formatDate(new Date(Date.now()), 'yyyyMMdd');
-    
-    var EventLog, Eventmaster, WhatsappLog;
-    const currentDate = new Date();
-    const currentHours = currentDate.getHours();
-    
-    if (currentHours >= 12) {
-      Eventmaster = `(SELECT * FROM eventmaster_${previousDay} UNION ALL SELECT * FROM eventmaster)`;
-      EventLog = `(SELECT * FROM eventlog_${previousDay} UNION ALL SELECT * FROM eventlog)`;
-      WhatsappLog = `(SELECT * FROM whatsapplog_${previousDay} UNION ALL SELECT * FROM whatsapplog)`;
-    } else {
-      Eventmaster = `eventmaster`;
-      EventLog = `eventlog`;
-      WhatsappLog = `whatsapplog`;
-    }
-    
-    let sql = `
-    SELECT 
-      em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,
-      DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime,
-      em.Alertmessage, em.IsHumanDetected, 
-      cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, 
-      dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, 
-      dt.Dept_name, dt.Dept_Location, dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3, dc.User_role1, dc.User_role2, dc.User_role3, 
-      bm.Branch_name, bm.contact_person, cm.Camera_Status, ep.imagepath
-    FROM 
-      ${Eventmaster} em
-    JOIN 
-      cameramaster cm ON cm.camera_id = em.analyticsource_id
-    JOIN 
-      devicemaster dm ON dm.device_id = cm.device_id
-    JOIN 
-      deptmaster dt ON dt.dept_id = dm.dept_id
-    LEFT JOIN 
-      deptcontacts dc ON dc.dept_id = dt.dept_id
-    JOIN 
-      branchmaster bm ON bm.branch_id = dt.branch_id
-    LEFT JOIN (
-      SELECT Event_ID, MIN(detected_file) AS imagepath 
-      FROM eventaistatus 
-      GROUP BY Event_ID
-    ) ep ON ep.Event_ID = em.Event_ID
-    LEFT JOIN 
-      ${EventLog} el ON el.Event_ID = em.Event_ID
-    LEFT JOIN 
-      ${WhatsappLog} wl ON wl.Event_ID = em.Event_ID
-    WHERE 
-      el.Event_ID IS NULL
-      AND wl.Event_ID IS NULL
-      AND (
-        em.Event_Name LIKE 'Tampering%' 
-        OR em.Event_Name LIKE 'HDD%' 
-        OR em.Event_Name LIKE 'Video%' 
-        OR em.Event_Name LIKE '%FULL%' 
-        OR em.Event_Name LIKE '%Device%' 
-        OR em.Event_Name LIKE 'illegalaccess%' 
-        OR em.Event_Name LIKE 'notconnected%' 
-        OR em.Event_Name LIKE 'ioalarm%' 
-        OR em.Event_Name LIKE 'cameramaskingalarmstart%'
-      )
-    GROUP BY 
-      em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, 
-      em.Alertmessage, em.IsHumanDetected, cm.camera_id, cm.camera_name, 
-      dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, 
-      dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, 
-      dt.Dept_Location, dc.Name1, dc.Contact_mobile1, dc.Contact_Email1, 
-      bm.Branch_name, bm.contact_person, cm.Camera_Status
-    ORDER BY 
-      em.Row_updated_date DESC
-    LIMIT ${offset}, ${config.eventlistpage};
-    `;
-    
+
+    let sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
+    cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
+    dc.Name1, dc.Contact_mobile1, dc.Contact_Email1, bm.Branch_name, bm.contact_person, cm.Camera_Status, ep.imagepath FROM eventmaster em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
+    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN (SELECT Event_ID, MIN(detected_file) AS imagepath FROM eventaistatus GROUP BY Event_ID
+    ) ep ON ep.Event_ID = em.Event_ID WHERE em.Event_ID NOT IN (SELECT el.Event_ID FROM eventlog el) AND em.Event_ID NOT IN (SELECT wl.Event_id FROM whatsapplog wl) AND ( em.Event_Name LIKE 'Tampering%' OR em.Event_Name LIKE 'HDD%' OR em.Event_Name LIKE 'Video%' 
+    OR em.Event_Name LIKE '%FULL%' OR em.Event_Name LIKE '%Device%' OR em.Event_Name LIKE 'illegalaccess%' OR em.Event_Name LIKE 'notconnected%' OR em.Event_Name LIKE 'ioalarm%' OR em.Event_Name LIKE 'cameramaskingalarmstart%') GROUP BY 
+    em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, em.Alertmessage, em.IsHumanDetected, cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name,
+    dt.Dept_Location, dc.Name1, dc.Contact_mobile1, dc.Contact_Email1, bm.Branch_name, bm.contact_person, cm.Camera_Status ORDER BY em.Row_updated_date DESC LIMIT ${offset}, ${config.eventlistpage};`;
+
     const rows = await db.query(sql);
     const data = helper.emptyOrRows(rows);
     const eventLinks = data.map(event => ({
@@ -2926,16 +2957,7 @@ async function getDevEvent(page, event) {
       Contact_Email1: event.Contact_Email1,
       Branch_name: event.Branch_name,
       device_name: event.device_name,
-      Camera_Status: event.Camera_Status,
-      Userrole1: event.User_role1,
-      Userrole2: event.User_role2,
-      Userrole3: event.User_role3,
-      Name2: event.Name2,
-      Contact_mobile2: event.Contact_mobile2,
-      Contact_Email2: event.Contact_Email2,
-      Name3: event.Name3,
-      Contact_mobile3: event.Contact_mobile3,
-      Contact_Email3: event.Contact_Email3,
+      Camera_Status: event.Camera_Status
     }));
 
     const meta = { page };
@@ -2995,28 +3017,16 @@ async function getVideolossEvent(page = 1,event){
    if (!querydata.hasOwnProperty('currentdate')) {
       return helper.getErrorResponse(false, "Current date missing. Please provide the currentdate", "Please enter the current date for the device event", secret);
     }
-    const previousDay = helper.formatDate(new Date(Date.now()), 'yyyyMMdd');
-    var EventLog,Eventmaster,WhatsappLog;
-    const currentDate = new Date();
-    const currentHours = currentDate.getHours();
-    if(currentHours >= 12){
-      Eventmaster = `(SELECT * FROM eventmaster_${previousDay} UNION ALL SELECT * FROM eventmaster)`;
-      EventLog = `(SELECT * FROM eventlog_${previousDay} UNION ALL SELECT * FROM eventlog)`
-      WhatsappLog = `(SELECT * FROM whatsapplog_${previousDay} UNION ALL SELECT * FROM whatsapplog)`;
-    }else{
-      Eventmaster = `eventmaster`;
-      EventLog = `eventlog`
-      WhatsappLog = `whatsapplog`;
-    }
+
     let sql = `SELECT 
     em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, 
     DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected,
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, 
     dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-    dc.Name1, dc.Contact_mobile1, dc.Contact_Email1,dc.Name2, dc.Contact_mobile2, dc.Contact_Email2,dc.Name3, dc.Contact_mobile3, dc.Contact_Email3, dc.User_role1, dc.User_role2, dc.User_role3, bm.Branch_name, bm.contact_person, 
+    dc.Name1, dc.Contact_mobile1, dc.Contact_Email1,dc.Name2, dc.Contact_mobile2, dc.Contact_Email2,dc.Name3, dc.Contact_mobile3, dc.Contact_Email3, bm.Branch_name, bm.contact_person, 
     cm.Camera_Status, MIN(ep.detected_file) AS imagepath
 FROM 
-    ${Eventmaster}  em
+    eventmaster em
 JOIN 
     cameramaster cm ON cm.camera_id = em.analyticsource_id
 JOIN 
@@ -3030,13 +3040,13 @@ JOIN
 LEFT JOIN 
     eventaistatus ep ON ep.Event_ID = em.Event_ID
 LEFT JOIN 
-    ${EventLog} el ON el.Event_ID = em.Event_ID
+    eventlog el ON el.Event_ID = em.Event_ID
 LEFT JOIN 
-    ${WhatsappLog} wl ON wl.Event_id = em.Event_ID
+    whatsapplog wl ON wl.Event_id = em.Event_ID
 WHERE 
     el.Event_ID IS NULL
     AND wl.Event_id IS NULL
-    AND em.Event_Name LIKE '%Video loss%'
+    AND em.Event_Name LIKE 'Video%'
 GROUP BY 
     em.Event_ID
 ORDER BY 
@@ -3072,10 +3082,7 @@ ORDER BY
       Contact_Email3: event.Contact_Email3,
       Branch_name: event.Branch_name,
       device_name: event.device_name,
-      Camera_Status: event.Camera_Status,
-      Userrole1: event.User_role1,
-      Userrole2: event.User_role2,
-      Userrole3: event.User_role3,
+      Camera_Status: event.Camera_Status
     }));
 
     const meta = { page };
@@ -3131,68 +3138,21 @@ async function getNotConnect(page = 1,event){
     const offset = helper.getOffset(page, config.eventlistpage);
     // const offset1 = helper.getOffset1(page, config.listPerPage);
 
-    if (!querydata.hasOwnProperty('currentdate')) {
-      return helper.getErrorResponse(
-        false,
-        "Current date missing. Please provide the currentdate",
-        "Please enter the current date for the not connected event",
-        secret
-      );
+   if (!querydata.hasOwnProperty('currentdate')) {
+      return helper.getErrorResponse(false, "Current date missing. Please provide the currentdate", "Please enter the current date for the not connected event", secret);
     }
-    
-    const previousDay = helper.formatDate(new Date(Date.now()), 'yyyyMMdd');
-    
-    let EventLog, Eventmaster, WhatsappLog;
-    
-    const currentDate = new Date();
-    const currentHours = currentDate.getHours();
-    
-    if (currentHours >= 12) {
-      Eventmaster = `(SELECT * FROM eventmaster_${previousDay} UNION ALL SELECT * FROM eventmaster)`;
-      EventLog = `(SELECT * FROM eventlog_${previousDay} UNION ALL SELECT * FROM eventlog)`;
-      WhatsappLog = `(SELECT * FROM whatsapplog_${previousDay} UNION ALL SELECT * FROM whatsapplog)`;
-    } else {
-      Eventmaster = `eventmaster`;
-      EventLog = `eventlog`;
-      WhatsappLog = `whatsapplog`;
-    }
-    
-    let sql = `
-    SELECT 
-      em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, 
-      DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
-      cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, 
-      dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-      dc.Name1, dc.Contact_mobile1, dc.Contact_Email1, dc.Name2, dc.Contact_mobile2, dc.Contact_Email2, 
-      dc.Name3, dc.Contact_mobile3, dc.Contact_Email3,dc.User_role1, dc.User_role2, dc.User_role3, bm.Branch_name, bm.contact_person, 
-      cm.Camera_Status, 
-      (SELECT MIN(ep.detected_file) FROM eventaistatus ep WHERE ep.Event_ID = em.Event_ID) AS imagepath
-    FROM 
-      ${Eventmaster} em
-    JOIN 
-      cameramaster cm ON cm.camera_id = em.analyticsource_id
-    JOIN 
-      devicemaster dm ON dm.device_id = cm.device_id
-    JOIN 
-      deptmaster dt ON dt.dept_id = dm.dept_id
-    LEFT JOIN 
-      deptcontacts dc ON dc.dept_id = dt.dept_id
-    JOIN 
-      branchmaster bm ON bm.branch_id = dt.branch_id
-    LEFT JOIN 
-      ${EventLog} el ON el.Event_ID = em.Event_ID
-    LEFT JOIN 
-      ${WhatsappLog} wl ON wl.Event_ID = em.Event_ID
-    WHERE 
-      el.Event_ID IS NULL
-      AND wl.Event_ID IS NULL
-      AND (em.Event_Name LIKE 'notconnected%')
-    ORDER BY 
-      em.Row_updated_date DESC
-    LIMIT 
-      ${offset}, ${config.eventlistpage};
-    `;
-    
+
+    let sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
+    cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id,dt.Dept_name,dt.Dept_Location,dc.Name1,dc.Contact_mobile1, 
+    dc.Contact_Email1,dc.Name2, dc.Contact_mobile2, dc.Contact_Email2,dc.Name3, dc.Contact_mobile3, dc.Contact_Email3,bm.Branch_name,bm.contact_person,cm.Camera_Status,(SELECT MIN(ep.detected_file) FROM eventaistatus ep WHERE ep.Event_ID = em.Event_ID) AS imagepath FROM 
+    eventmaster em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN 
+    devicemaster dm ON dm.device_id = cm.device_id JOIN 
+    deptmaster dt ON dt.dept_id = dm.dept_id LEFT JOIN 
+    deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN 
+    eventaistatus ep ON ep.Event_ID = em.Event_ID WHERE 
+    em.Event_ID NOT IN (SELECT el.Event_ID FROM eventlog el) 
+    AND em.Event_ID NOT IN (SELECT wl.Event_id FROM whatsapplog wl) AND (em.Event_Name LIKE 'notconnected%' OR em.Event_Name LIKE 'notconnected%') ORDER BY em.Row_updated_date DESC LIMIT ${offset}, ${config.eventlistpage};`;
+
     const rows = await db.query(sql);
     const data = helper.emptyOrRows(rows);
     const eventLinks = data.map(event => ({
@@ -3223,10 +3183,7 @@ async function getNotConnect(page = 1,event){
       Contact_Email3: event.Contact_Email3,
       Branch_name: event.Branch_name,
       device_name: event.device_name,
-      Camera_Status: event.Camera_Status,
-      Userrole1: event.User_role1,
-      Userrole2: event.User_role2,
-      Userrole3: event.User_role3,
+      Camera_Status: event.Camera_Status
     }));
 
     const meta = { page };
@@ -3443,7 +3400,7 @@ if(querydata.hasOwnProperty('eventname')==false){
 
   let sql =''
   sql = `SELECT dm.IP_Domain, dm.IP_Port, dm.IP_Uname, dm.IP_pwd, dm.SDK_ID, dm.device_name, dm.Device_id, cm.Camera_status, cm.camera_name,bm.Branch_name, bm.branch_id, bm.site_starttime, 
-         bm.whatsappgroupname,dt.Dept_location, dc.Name1, dc.Name2, dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3 
+         bm.whatsappgroupname,dt.Dept_location, dc.Name1, dc.Name2, dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3
          FROM cameramaster cm JOIN devicemaster dm ON dm.Device_ID = cm.Device_ID JOIN deptmaster dt ON dt.Dept_id = dm.Dept_id JOIN branchmaster bm ON bm.Branch_id = dt.Branch_id
          LEFT JOIN deptcontacts dc ON dt.Dept_id = dc.Dept_id WHERE cm.Camera_ID = ${querydata.cameraid} LIMIT 1;`;
   const rows = await db.query(sql);
@@ -3464,17 +3421,13 @@ if(querydata.hasOwnProperty('eventname')==false){
       site_starttime: Notifytime,
       Branch_name: sitename,
       Name1 : Name1,
-      Name2: Name2,
-      Name3: Name3,
+      Name2: Name2, Name3: Name3,
       Contact_mobile1:Contact_mobile1,
       Contact_mobile2: Contact_mobile2,
       Contact_mobile3: Contact_mobile3,
       Contact_Email1:Contact_Email1,
       Contact_Email2: Contact_Email2,
-      Contact_Email3: Contact_Email3,
-      Userrole1: Userrole1,
-      Userrole2: Userrole2 ,
-      Userrole3: Userrole3,
+      Contact_Email3: Contact_Email3
     } = rows[0];
   var channelno=camera_no.replace("Channel","");
   channelno=camera_no.replace("channel","");
@@ -3490,7 +3443,7 @@ if(querydata.hasOwnProperty('eventname')==false){
   // // console("sitename ->"+sitename);
   try
     {
-      const returnstr = JSON.stringify({code:true,message:'Event created Successfully',cameraid,eventid,eventname,sitename,ipaddress,port,username,password,SDK_ID,deviceid,devicename,channelno,camerastatus,whatsappgroupname,Location,Notifytime,siteid,Name1, Name2, Name3,Contact_mobile1, Contact_mobile2, Contact_mobile3,Contact_Email1, Contact_Email2, Contact_Email3, Userrole1, Userrole2, Userrole3});
+      const returnstr = JSON.stringify({code:true,message:'Event created Successfully',cameraid,eventid,eventname,sitename,ipaddress,port,username,password,SDK_ID,deviceid,devicename,channelno,camerastatus,whatsappgroupname,Location,Notifytime,siteid,Name1, Name2, Name3,Contact_mobile1, Contact_mobile2, Contact_mobile3,Contact_Email1, Contact_Email2, Contact_Email3});
       if (secret!="")
       {
 
@@ -3500,12 +3453,12 @@ if(querydata.hasOwnProperty('eventname')==false){
       }
       else
       {
-        return ({code:true,message:'Event created Successfully',cameraid,eventid,eventname,sitename,ipaddress,port,username,password,SDK_ID,deviceid,devicename,channelno,camerastatus,whatsappgroupname,Location,Notifytime,siteid,Name1, Name2, Name3,Contact_mobile1, Contact_mobile2, Contact_mobile3,Contact_Email1, Contact_Email2, Contact_Email3,Userrole1, Userrole2, Userrole3});
+        return ({code:true,message:'Event created Successfully',cameraid,eventid,eventname,sitename,ipaddress,port,username,password,SDK_ID,deviceid,devicename,channelno,camerastatus,whatsappgroupname,Location,Notifytime,siteid,Name1, Name2, Name3,Contact_mobile1, Contact_mobile2, Contact_mobile3,Contact_Email1, Contact_Email2, Contact_Email3});
       }
     }
     catch(Ex)
     {
-      return ({code:true,message:'Event created Successfully',cameraid,eventid,eventname,sitename,ipaddress,port,username,password,SDK_ID,deviceid,devicename,channelno,camerastatus,whatsappgroupname,Location,Notifytime,siteid,Name1, Name2, Name3,Contact_mobile1, Contact_mobile2, Contact_mobile3,Contact_Email1, Contact_Email2, Contact_Email3,Userrole1, Userrole2, Userrole3});
+      return ({code:true,message:'Event created Successfully',cameraid,eventid,eventname,sitename,ipaddress,port,username,password,SDK_ID,deviceid,devicename,channelno,camerastatus,whatsappgroupname,Location,Notifytime,siteid,Name1, Name2, Name3,Contact_mobile1, Contact_mobile2, Contact_mobile3,Contact_Email1, Contact_Email2, Contact_Email3});
     }
  }else{
     return helper.getErrorResponse(false,"Error creating the Event","CREATE NEW EVENT",secret);   
@@ -3667,51 +3620,23 @@ async function GetUserReport(page,event){
     const endDay = helper.formatDate(endTime, 'yyyyMMdd');
     let eventTable, logTable, whatsappTable, eventaistatus,eventuserstatus,eventstatus;
     if (startDay < currentDay && endDay < currentDay) {
-      // Searching for past events - Use archive tables
-      if (currentHour < 12 && startDay == previousDay) {
-        // If it's before noon and searching for yesterday's data, use live tables
+      // Both dates in the past: use archived tables with the computed archiveDate.
+      eventTable = `eventmaster_${archiveDate}`;
+      logTable = `eventlog_${archiveDate}`;
+      whatsappTable = `whatsapplog_${archiveDate}`;
+      eventaistatus = `eventaistatus_${archiveDate}`;
+      eventuserstatus = `eventuser_${archiveDate}`;
+      eventstatus = `eventstatus_${archiveDate}`;
+    } else if (startDay === currentDay && endDay === currentDay) {
+      // For the current day, use live tables (so you get full time details).
       eventTable = `eventmaster`;
       logTable = `eventlog`;
       whatsappTable = `whatsapplog`;
       eventaistatus = `eventaistatus`;
       eventuserstatus = `eventuser`;
       eventstatus = `eventstatus`;
-      }else {
-        // Otherwise, use archived tables
-        eventTable = `eventmaster_${archiveDate}`;
-        logTable = `eventlog_${archiveDate}`;
-        whatsappTable = `whatsapplog_${archiveDate}`;
-        eventaistatus = `eventaistatus_${archiveDate}`;
-        eventuserstatus = `eventuser_${archiveDate}`;
-        eventstatus = `eventstatus_${archiveDate}`;
-      }
-    }  else if (startDay == currentDay && endDay == currentDay) {
-      // Current day's data - Use live tables
-      if (currentHour >= 12 && currentHour <= 24 && startTime.getHours() < 12 && endTime.getHours() < 12) {
-        eventTable = `eventmaster_${currentDay}`;
-        logTable = `eventlog_${currentDay}`;
-        whatsappTable = `whatsapplog_${currentDay}`;
-        eventaistatus = `eventaistatus_${currentDay}`;
-        eventuserstatus = `eventuser_${currentDay}`;
-        eventstatus = `eventstatus_${currentDay}`;
-      }else  if (currentHour >= 12 && currentHour <= 24 && startTime.getHours() < 12 && endTime.getHours() >= 12) {
-        eventTable = `(SELECT * FROM eventmaster_${currentDay} UNION ALL SELECT * FROM eventmaster)`;
-        logTable = `(SELECT * FROM eventlog_${currentDay} UNION ALL SELECT * FROM eventlog)`;
-        whatsappTable = `(SELECT * FROM whatsapplog_${currentDay} UNION ALL SELECT * FROM whatsapplog)`;
-        eventaistatus = `(SELECT * FROM eventaistatus_${currentDay} UNION ALL SELECT * FROM eventaistatus)`;
-        eventuserstatus = `(SELECT * FROM eventuser_${currentDay} UNION ALL SELECT * FROM eventuser)`;
-        eventstatus = `(SELECT * FROM eventstatus_${currentDay} UNION ALL SELECT * FROM eventstatus)`;
-      }
-      else {
-        eventTable = `eventmaster`;
-        logTable = `eventlog`;
-        whatsappTable = `whatsapplog`;
-        eventaistatus = `eventaistatus`;
-        eventuserstatus = `eventuser`;
-        eventstatus = `eventstatus`;
-      }
     } else if (startDay > currentDay && endDay > currentDay) {
-      // Future dates - Use live tables
+      // Future dates: use live tables.
       eventTable = `eventmaster`;
       logTable = `eventlog`;
       whatsappTable = `whatsapplog`;
@@ -3720,14 +3645,14 @@ async function GetUserReport(page,event){
       eventstatus = `eventstatus`;
     } else {
       if (currentHour < 12) {
-        // Before noon, use live tables even if the range spans archived data
-        eventTable = `eventmaster`;
-        logTable = `eventlog`;
-        whatsappTable = `whatsapplog`;
-        eventaistatus = `eventaistatus`;
+        // Before noon: use live tables.
+        eventTable = 'eventmaster';
+        logTable = 'eventlog';
+        whatsappTable = 'whatsapplog';
+        eventaistatus = 'eventaistatus';
         eventuserstatus = `eventuser`;
         eventstatus = `eventstatus`;
-      } else{
+      }else{
       // Spanning dates: use UNION of archived and live tables.
       eventTable = `(SELECT * FROM eventmaster_${archiveDate} UNION ALL SELECT * FROM eventmaster)`;
       logTable = `(SELECT * FROM eventlog_${archiveDate} UNION ALL SELECT * FROM eventlog)`;
@@ -3742,8 +3667,8 @@ async function GetUserReport(page,event){
   if(querydata.filtertype == 'all'){
     sql = `SELECT em.Event_ID,em.Event_Name,bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime,em.Alertmessage,em.IsHumanDetected,
     cm.camera_id,cm.camera_name,dm.device_name,dm.IP_Domain,dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID,  dm.device_id, dt.Dept_name,dt.Dept_Location, 
-    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status, MIN(es.detected_file) AS imagepath,CASE WHEN el.Event_ID IS NOT NULL OR wl.Event_ID IS NOT NULL THEN 'Acknowledged' 
-    ELSE 'Unacknowledged' END AS eventstatus, MAX(el.feedback) AS feedback,MAX(el.Row_upd_date) Acknowleged_time,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+    dc.Name1,dc.Contact_mobile1,dc.Contact_Email1,bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status, MIN(es.detected_file) AS imagepath,CASE WHEN el.Event_ID IS NOT NULL OR wl.Event_ID IS NOT NULL THEN 'Acknowledged' 
+    ELSE 'Unacknowledged' END AS eventstatus, MAX(el.feedback) AS feedback,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status FROM ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id
     JOIN deptmaster dt ON dt.dept_id = dm.dept_id LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id
@@ -3752,7 +3677,7 @@ async function GetUserReport(page,event){
   }else if(querydata.filtertype == 'unacknowledged'){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-     dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+    dc.Name1, dc.Contact_mobile1, dc.Contact_Email1, bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status FROM ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
     LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN (SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} es GROUP BY Event_ID
@@ -3761,7 +3686,7 @@ async function GetUserReport(page,event){
   }else if(querydata.filtertype == 'acknowledged'){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage,em.IsHumanDetected,
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain,dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name,
-    dt.Dept_Location,  dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name, bm.site_starttime Notifytime,bm.branch_id siteid, bm.contact_person,cm.Camera_Status, ep.imagepath, el.feedback,el.Row_upd_date Acknowleged_time,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+    dt.Dept_Location, dc.Name1, dc.Contact_mobile1,dc.Contact_Email1, bm.Branch_name, bm.site_starttime Notifytime,bm.branch_id siteid, bm.contact_person,cm.Camera_Status, ep.imagepath, el.feedback,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status
     FROM  ${eventTable}  em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id
@@ -3770,40 +3695,27 @@ async function GetUserReport(page,event){
     JOIN ${logTable} el ON el.event_id = em.Event_ID WHERE EXISTS (SELECT 1 FROM ${eventuserstatus} eu WHERE eu.Event_id = em.Event_ID AND eu.user_id = ${querydata.userid}) and 
     (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
   }else if(querydata.filtertype == 'whatsapp'){
-    // sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
-    // cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-    // dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.contact_person,bm.branch_id siteid, cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
-    // ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
-    // ELSE FALSE END AS oneway_status FROM  ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
-    // LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN (SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} es GROUP BY Event_ID
-    // ) ep ON ep.Event_ID = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_id FROM ${whatsappTable} wl) AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
-    // WHERE eu.user_id = ${querydata.userid}) and (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
-    sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
-     cm.camera_id, cm.camera_name, dm.device_name,dm.IP_Domain, dm.RTSP_port, dm.IP_port,dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id,dt.Dept_name, dt.Dept_Location, 
-     dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 AS Userrole1, 
-     dc.User_role2 AS Userrole2, dc.User_role3 AS Userrole3, bm.Branch_name,bm.site_starttime AS Notifytime,bm.contact_person,bm.branch_id AS siteid, cm.Camera_Status, ep.imagepath,
-     CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id AND status = 1 AND ECStype = 'Two way') THEN TRUE ELSE FALSE 
-     END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id  AND status = 1 AND ECStype = 'PA system') THEN TRUE ELSE FALSE 
-     END AS oneway_status,el.feedback, el.Row_upd_date AS Acknowleged_time FROM ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id
-     JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN 
-     branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN 
-    ( SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} es GROUP BY  Event_ID) ep ON ep.Event_ID = em.Event_ID
-    LEFT JOIN ${logTable} el ON el.Event_id = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_id FROM ${whatsappTable} wl)AND em.Event_ID IN ( SELECT eu.Event_id 
-    FROM ${eventuserstatus} eu WHERE eu.user_id = ${querydata.userid}) AND em.Row_updated_date BETWEEN '${querydata.starttime}' AND '${querydata.endtime}'
-    GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage};`
+    sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
+    cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
+    dc.Name1, dc.Contact_mobile1, dc.Contact_Email1, bm.Branch_name,bm.site_starttime Notifytime,bm.contact_person,bm.branch_id siteid, cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+    ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
+    ELSE FALSE END AS oneway_status FROM  ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
+    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN (SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} es GROUP BY Event_ID
+    ) ep ON ep.Event_ID = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_id FROM ${whatsappTable} wl) AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
+    WHERE eu.user_id = ${querydata.userid}) and (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
   }else if(querydata.filtertype == 'ai'){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.contact_person, bm.branch_id siteid,cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+    dc.Name1, dc.Contact_mobile1, dc.Contact_Email1, bm.Branch_name,bm.site_starttime Notifytime,bm.contact_person, bm.branch_id siteid,cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
-    ELSE FALSE END AS oneway_status,el.feedback, el.Row_upd_date AS Acknowledged_time FROM  ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
+    ELSE FALSE END AS oneway_status FROM  ${eventTable}  em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
     LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN (SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} eai GROUP BY eai.Event_ID
-    ) ep ON ep.Event_ID = em.Event_ID JOIN ${logTable} el ON el.Event_ID = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_ID FROM ${logTable} wl where wl.feedback like '%AI%') AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
+    ) ep ON ep.Event_ID = em.Event_ID WHERE em.Event_ID IN (SELECT el.Event_ID FROM ${logTable} el where el.feedback like '%AI%') AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
     WHERE eu.user_id = ${querydata.userid}) and (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
   }else{
     return helper.getErrorResponse(false,"Unknown filter type.","Please choose the valid filter type",secret);
   }
-  // console.log(sql);
+  // console(sql);
   const rows = await db.query(sql);
   if (!rows.length) {
     return helper.getErrorResponse(false, "Events not available.", [], secret);
@@ -4049,7 +3961,7 @@ async function Acknowledge(page,event){
          DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected,
          cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, 
          dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location,
-         dc.Name1, dc.Contact_mobile1, dc.Contact_Email1,dc.Name2, dc.Contact_mobile2, dc.Contact_Email2,dc.Name3, dc.Contact_mobile3, dc.Contact_Email3,dc.User_role1, dc.User_role2, dc.User_role3, bm.Branch_name, bm.site_starttime AS 
+         dc.Name1, dc.Contact_mobile1, dc.Contact_Email1,dc.Name2, dc.Contact_mobile2, dc.Contact_Email2,dc.Name3, dc.Contact_mobile3, dc.Contact_Email3, bm.Branch_name, bm.site_starttime AS 
          Notifytime, 
          bm.contact_person, cm.Camera_Status, ep.imagepath, el.feedback, el.Row_upd_date,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype 
          = 'Two way') THEN TRUE
@@ -4471,13 +4383,13 @@ function formatDate(date) {
   const yyyy = date.getFullYear();
   const mm = ('0' + (date.getMonth() + 1)).slice(-2);
   const dd = ('0' + date.getDate()).slice(-2);
-  return `${yyyy}-${mm}-${dd} 11:59:00`;
+  return `${yyyy}-${mm}-${dd} 07:10:00`;
 }
 function logindate(date) {
   const yyyy = date.getFullYear();
   const mm = ('0' + (date.getMonth() + 1)).slice(-2);
   const dd = ('0' + date.getDate()).slice(-2);
-  return `${yyyy}-${mm}-${dd} 12:00:00`;
+  return `${yyyy}-${mm}-${dd} 13:00:00`;
 }
 
 function userbreak(date) {
@@ -4535,7 +4447,7 @@ if (startDay < currentDay && endDay < currentDay) {
   whatsappTable = `whatsapplog`;
   eventaistatus = `eventaistatus`;
   eventuserstatus = `eventuser`;
-  userbreaks = `usersbreak`;
+  userbreaks = `usersbreak`; 
 } else {
   if (currentHour < 12) {
     // Before noon: use live tables.
@@ -4558,30 +4470,31 @@ if (startDay < currentDay && endDay < currentDay) {
 var sql;
 
   try{
-     sql = await db.query(`SELECT um.user_id,um.username,COALESCE(ul.first_logged_in, 'N/A') AS first_login_time, COALESCE(ul.last_logged_out, 'N/A') AS last_logout_time,COALESCE(SUM(ub.break_duration_minutes), 0) AS availed_break_time,
-    '01:00:00' AS allowed_break_time, COALESCE(eu.totalevent, 0) AS total_events, COALESCE(el.ackevent, 0) AS acknowledged_events,(COALESCE(eu.totalevent, 0) - COALESCE(el.ackevent, 0)) AS unacknowledged_events,
-    COALESCE(wl.whatsapp, 0) AS whatsapp_events FROM usermaster um LEFT JOIN ( SELECT user_id,COUNT(DISTINCT event_id) AS totalevent FROM ${eventuserstatus} WHERE Row_updated_date BETWEEN ? AND ?
+     sql = await db.query(`SELECT um.user_id,um.username,COALESCE(ul.first_logged_in, 'N/A') AS first_login_time, COALESCE(ul.last_logged_out, 'N/A') AS 
+    last_logout_time,COALESCE(SUM(ub.break_duration_minutes), 0) AS availed_break_time,
+    '00:45:00' AS allowed_break_time, COALESCE(eu.totalevent, 0) AS total_events, COALESCE(el.ackevent, 0) AS acknowledged_events,(COALESCE(eu.totalevent, 0) - COALESCE(el.ackevent, 0)) AS 
+    unacknowledged_events, COALESCE(wl.whatsapp, 0) AS whatsapp_events FROM usermaster um LEFT JOIN ( SELECT user_id,COUNT(DISTINCT event_id) AS totalevent FROM ${eventuserstatus} WHERE 
+    Row_updated_date BETWEEN ? AND  ?
     GROUP BY user_id) eu ON eu.user_id = um.user_id LEFT JOIN (SELECT Created_by AS user_id,COUNT(DISTINCT event_id) AS ackevent FROM ${logTable} WHERE Row_upd_date BETWEEN ? AND ?
     GROUP BY Created_by) el ON el.user_id = um.user_id LEFT JOIN (SELECT user_id,COUNT(DISTINCT event_id) AS whatsapp FROM ${whatsappTable}  WHERE Row_updated_date BETWEEN ? AND ?
-    GROUP BY user_id) wl ON wl.user_id = um.user_id LEFT JOIN (SELECT  user_id,  MIN(logged_in) AS first_logged_in,MAX(logged_out) AS last_logged_out FROM userlog WHERE deleted_flag = 0 AND logged_in >= ? AND (logged_out <= ? OR logged_out IS NULL) GROUP BY user_id
-    ) ul ON ul.user_id = um.user_id LEFT JOIN (SELECT user_id, SUM(TIMESTAMPDIFF(MINUTE, Break_time, Break_finished_time)) AS break_duration_minutes FROM ${userbreaks} WHERE Row_updated_date >= ?
+    GROUP BY user_id) wl ON wl.user_id = um.user_id LEFT JOIN (SELECT  user_id,  MIN(logged_in) AS first_logged_in,MAX(logged_out) AS last_logged_out FROM userlog WHERE deleted_flag = 0 AND 
+    logged_in >= ?  GROUP BY user_id) ul ON ul.user_id = um.user_id LEFT JOIN (SELECT user_id, SUM(TIMESTAMPDIFF(MINUTE, Break_time, Break_finished_time)) AS break_duration_minutes FROM 
+    ${userbreaks} WHERE Row_updated_date >= ?
     GROUP BY user_id) ub ON ub.user_id = um.user_id WHERE um.user_design IN ('executive', 'supervisor', 'administrator') AND um.status = 1 AND um.Customer_ID = 0 AND eu.totalevent > 0
-    GROUP BY um.user_id, um.username, ul.first_logged_in, ul.last_logged_out;
-    `,[startDatetime,endDatetime,startDatetime,endDatetime,startDatetime,endDatetime,logintime,endDatetime,breakstarttime]);
+    GROUP BY um.user_id, um.username, ul.first_logged_in, ul.last_logged_out;`,[startDatetime,endDatetime,startDatetime,endDatetime,startDatetime,endDatetime,logintime,breakstarttime]);
   }catch(er){
-    return helper.getErrorResponse(false,"There is no Report to show",er.message,secret);
+    return helper.getErrorResponse(false,"There is no Report to show",er.message,secret);          
   }
-
-    if(sql[0]){
+  if(sql[0]){
       return helper.getSuccessResponse(true,"User's Daily report Fetched Successfully",sql,secret);
     }else{
       return helper.getErrorResponse(false,"There is no Report to show",sql,secret);
     }
-    
-  } catch (er) {
+    } catch (er) {
     return helper.getErrorResponse(false,"Internal error. Please contact Administration",er,secret);
   }
 }
+
 
 module.exports = {
   create,
@@ -4600,6 +4513,7 @@ module.exports = {
   getEventProperty,
   addCustomMessage,
   addEventFeedback,
+  addEmergencyContact,
   addWhatsappLog,    
   GetAIEvent, 
   Eventlistfilter,

@@ -20,6 +20,7 @@ const serverRouter = require("./routes/server");
 const verificationRouter = require('./routes/verification');
 const GraphRouter = require('./routes/graph');
 const SecureRouter = require('./routes/secureshutter');
+const AlertRouter = require('./routes/alert');
 
 const sessions = require('express-session');
 var session;
@@ -72,6 +73,7 @@ app.use("./server",serverRouter);
 app.use('/verification', verificationRouter);
 app.use('/graph',GraphRouter);
 app.use('/secureshutter',SecureRouter);
+app.use('/alert', AlertRouter);
 
 /* Error handler middleware */
 app.use((err, req, res, next ) => {

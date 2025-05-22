@@ -163,6 +163,16 @@ router.post('/addeventfeedback',async function(req,res, next){
   }
 });
 
+router.post('/addemergencycontact',async function(req,res, next){
+  try{
+    res.json(await event.addEmergencyContact(req.body));
+  }
+  catch(err){
+    console.error('Error while adding emergency contact',err.message);
+    next(err);
+  }
+});
+
 //Add the event whatsapp
 router.post('/addwhatsapplog',async function(req,res, next){
   try{

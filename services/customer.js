@@ -3340,8 +3340,8 @@ async function getcompany(customer,clientIp) {
   let clSQLOrg = "";
 
   if (userType == "0" && customerId == "0") {
-    clSQL = "SELECT * FROM customermaster WHERE status=1 AND organization_id=0";
-    clSQLOrg = "SELECT * FROM organizations WHERE status=1";
+    clSQL = "SELECT * FROM customermaster WHERE status=1 AND organization_id=0 and customer_id IN(select customer_id from branchmaster where status = 1)";
+    clSQLOrg = "SELECT * FROM organizations WHERE status=1 and Organization_ID IN (SELECT Organization_ID FROM customermaster WHERE customer_id IN(select customer_id from branchmaster where status = 1))";
   } else {
     clSQL = `SELECT * FROM customermaster WHERE status=1 AND organization_id=0 AND customer_id=${customerId}`;
     clSQLOrg = `SELECT * FROM organizations WHERE status=1 AND Organization_ID IN (SELECT Organization_ID FROM customermaster WHERE customer_id=${customerId})`;
