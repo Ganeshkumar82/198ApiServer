@@ -180,7 +180,7 @@ async function register(customer){
         }
       }
       //End of Validation:- 11  
-      //Begin Validation:- 12. Send Verification SMSs
+      //Begin Validation:- 12. Send Verification SMS
       const [result2] = await db.spcall('CALL SP_ACTVERIFY_ADD(?,?,?,@acttoken);select @acttoken;',[custID,queryData.phoneno,1]);
       const objectValue2 = result2[1][0];
       //// console("acttoken SMS=>"+objectValue2["@acttoken"]);
@@ -390,7 +390,6 @@ if(customer.hasOwnProperty('companyid')==false){
     const data = JSON.stringify(helper.emptyOrRows(rows));
     //// console(data);
     return helper.getSuccessResponse("SITE_LIST_FETCHED_SUCCESSFULLY","The Customer Company Site list fetched Successfully",data,secret);
-
   }
   else
   {
@@ -3619,6 +3618,9 @@ async function createGroup(customer) {
     }
   }
 }catch(er){
+  if(er.code && er.code === 'ER_DUP_ENTRY') {
+    return helper.getErrorResponse(false, "Group name already exists. Please choose a different name.","PLAYBACK CREATE GROUP",secret);
+  }
   return helper.getErrorResponse(false,'Internal error. Please contact Administration',er,secret);
 }
 }
@@ -4036,7 +4038,7 @@ async function DeleteGroup(customer) {
   }
   let sql ="";
   let rows = "";
-  sql = `Update groupmaster Set Deleted_flag = 1 ,status = 0 where group_id = ? and (created_by = ? OR EXISTS (select 1 from usermaster where user_design = 'administrator' and user_id = ?));`;
+  sql = `Update groupmaster Set Deleted_flag = 1 ,status = 0,group_name = CONCAT(group_name, '_DELETED') where group_id = ? and (created_by = ? OR EXISTS (select 1 from usermaster where user_design = 'administrator' and user_id = ?));`;
    rows = await db.query(sql,[queryData.groupid,userid,userid]);
   
   if (rows.affectedRows > 0) {
@@ -4106,7 +4108,19 @@ async function DeleteCamera(customer) {
   }
   let sql ="";
   let rows = "";
-  sql = `DELETE FROM groupcameras where camera_id= ${queryData.cameraid} and  group_id= ${queryData.groupid} and (created_by = ? OR EXISTS (select 1 from usermaster where user_design = 'administrator'));`;
+  sql = `
+DELETE FROM groupcameras 
+WHERE camera_id = ${queryData.cameraid}
+  AND group_id = ${queryData.groupid}
+  AND (
+    (SELECT created_by FROM groupmaster WHERE group_id = ${queryData.groupid}) = ${userid}
+    OR EXISTS (
+      SELECT 1 FROM usermaster WHERE user_design = 'administrator'
+    )
+  );
+`;
+
+  //sql = `DELETE FROM groupcameras where camera_id= ${queryData.cameraid} and  group_id= ${queryData.groupid} and (created_by = ? OR EXISTS (select 1 from usermaster where user_design = 'administrator'));`;
   //console.error("Sql->"+sql);
    rows = await db.query(sql);
   
@@ -5708,6 +5722,66 @@ async function LiveChat(customer) {
     return helper.getErrorResponse(false, "Internal error. Please contact Administration.", er, secret);
   }
 }
+//####################################################################################################################################################################################################
+async function addUserLevelAccess(customer) {
+  try {
+    // Check if the session token is provided
+    if (!customer.hasOwnProperty("STOKEN")) {
+      return helper.getErrorResponse(false, "Session token is missing. Please provide a valid session token.", "ADD USER LEVEL ACCESS", "");
+    }
+
+    const secret = customer.STOKEN.substring(0, 16);
+
+    // Check token length
+    if (customer.STOKEN.length > 50 || customer.STOKEN.length < 30) {
+      return helper.getErrorResponse(false, "Invalid session token size. Please provide a valid session token.", "ADD USER LEVEL ACCESS", secret);
+    }
+
+    // Token validity check
+    const [result1] = await db.spcall(
+      'CALL SP_STOKEN_CHECK(?,@result,@custid,@custname,@custemail);select @result,@custid,@custname,@custemail;',
+      [customer.STOKEN]
+    );
+    const objectValue1 = result1[1][0];
+    const userid = objectValue1["@result"];
+
+    if (userid == null) {
+      return helper.getErrorResponse(false, "Login sessiontoken Invalid. Please provide the valid sessiontoken", "ADD USER LEVEL ACCESS", secret);
+    }
+
+    // Check for query string
+    if (!customer.hasOwnProperty("querystring")) {
+      return helper.getErrorResponse(false, "User level access query string is missing. Please provide a valid query string.", "ADD USER LEVEL ACCESS", secret);
+    }
+
+    let querydata;
+    try {
+      querydata = await helper.decrypt(customer.querystring, secret);
+      querydata = JSON.parse(querydata);
+    } catch (err) {
+      return helper.getErrorResponse(false, "Invalid or corrupted query string.", "ADD USER LEVEL ACCESS", secret);
+    }
+
+    // Check for userid and access
+    if (!querydata.userid || !querydata.useraccess) {
+      return helper.getErrorResponse(false, "userid or useraccess field missing in request.", "ADD USER LEVEL ACCESS", secret);
+    }
+
+    // Update access
+    const updateSql = `UPDATE usermaster SET user_access = ?, Row_updated_date = NOW() WHERE user_id = ? AND Deleted_Flag = 0`;
+    const result = await db.query(updateSql, [querydata.useraccess, querydata.userid]);
+
+    if (result.affectedRows > 0) {
+      return helper.getSuccessResponse(true, "User access updated successfully.", result, secret);
+    } else {
+      return helper.getErrorResponse(false, "Failed to update user access or user not found.", result, secret);
+    }
+
+  } catch (er) {
+    return helper.getErrorResponse(false, "Internal error. Please contact Administration.", er.toString(), "");
+  }
+}
+
 
 
 
@@ -5768,5 +5842,6 @@ module.exports = {
   generateGst,
   getDeviceInfo,
   EnquiryCustomer,
-  LiveChat
+  LiveChat,
+  addUserLevelAccess
 }

@@ -26,6 +26,6 @@ const config = {
   sitecontrollerpath : "\\\\192.168.0.198\\volumes\\SITECONTROLLER\\Site_Controller",
   deviceinfopath : 'http://192.168.0.166:8002',
   listPerPage: 15,
-  eventlistpage: 40,
+  eventlistpage: 100,
 };
 module.exports = config;

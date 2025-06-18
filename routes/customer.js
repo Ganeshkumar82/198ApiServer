@@ -565,4 +565,13 @@ router.post('/livechat', async function(req,res,next){
   }
 });
 
+router.post('/adduseraccess', async function(req,res,next){
+  try{
+    res.json(await customer.addUserLevelAccess(req.body));
+  }catch(er){
+    console.error(`Error while adding user access${er.message}`);
+    next(er);
+  }
+});
+
 module.exports = router;

@@ -1325,7 +1325,7 @@ async function addEventFeedback(event) {
     let eventIds = Array.isArray(evtData.eventid) ? evtData.eventid : [evtData.eventid];
     let allResults = [];
     let eventIdsJson = JSON.stringify(eventIds);
-    const [result1] = await db.spcall('CALL SP_UPSERT_EVENT_LOG_BULK(?, ?, ?, ?,@affected_rows); select @affected_rows;', [eventIdsJson, evtData.flag, evtData.feedback, userid]);
+    const [result1] = await db.spcall('CALL SP_UPDATE_EVENT_LOG_BULK(?, ?, ?, ?,@affected_rows); select @affected_rows;', [eventIdsJson, evtData.flag, evtData.feedback, userid]);
     const objectvalue1 = result1[1][0];
  
     if (objectvalue1["@affected_rows"] > 0) {
@@ -1337,10 +1337,8 @@ async function addEventFeedback(event) {
           // Encrypt the results and return
           const encryptedResponse = helper.encrypt(JSON.stringify(allResults), secret);
           return {encryptedResponse}
-  } catch (er) {
-    if(er.code === 'ER_DUP_ENTRY') {
 
-    }
+  } catch (er) {
     return helper.getErrorResponse(false, "Internal error. Please contact Administration", er.message);
   }
 }
@@ -2061,14 +2059,7 @@ if (startDay === endDay) {
       whatsappTable = `whatsapplog`;
       eventaistatus = `eventaistatus`;
       eventuserstatus = `eventuser`;
-    }else if(currentHour >= 12 && startTime.getHours() >= 12 && endTime.getHours() < 24){
-      eventTable = `eventmaster`;
-      logTable = `eventlog`;
-      whatsappTable = `whatsapplog`;
-      eventaistatus = `eventaistatus`;
-      eventuserstatus = `eventuser`;
-    }
-    else {
+    } else {
       eventTable = `eventmaster_${currentDay}`;
       logTable = `eventlog_${currentDay}`;
       whatsappTable = `whatsapplog_${currentDay}`;
@@ -3699,7 +3690,7 @@ async function GetUserReport(page,event){
     const startDay = helper.formatDate(startTime, 'yyyyMMdd');
     const endDay = helper.formatDate(endTime, 'yyyyMMdd');
     
-    let eventTable, logTable, whatsappTable, eventuserstatus, eventstatus;
+    let eventTable, logTable, whatsappTable, eventaistatus, eventuserstatus, eventstatus;
     
     if (startDay === endDay) {
       // Single day
@@ -3721,14 +3712,7 @@ async function GetUserReport(page,event){
           eventaistatus = `eventaistatus`;
           eventuserstatus = `eventuser`;
           eventstatus = `eventstatus`;
-      }else if(currentHour >= 12 && startTime.getHours() >= 12 && endTime.getHours() <= 24){
-        eventTable = `eventmaster`;
-        logTable = `eventlog`;
-        whatsappTable = `whatsapplog`;
-        eventaistatus = `eventaistatus`;
-        eventuserstatus = `eventuser`;
-        eventstatus = `eventstatus`;
-      }else {
+        } else {
           // After 12 noon
           eventTable = `eventmaster_${currentDay}`;
           logTable = `eventlog_${currentDay}`;
@@ -3816,29 +3800,31 @@ async function GetUserReport(page,event){
   if(querydata.filtertype == 'all'){
     sql = `SELECT em.Event_ID,em.Event_Name,bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime,em.Alertmessage,em.IsHumanDetected,
     cm.camera_id,cm.camera_name,dm.device_name,dm.IP_Domain,dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID,  dm.device_id, dt.Dept_name,dt.Dept_Location, 
-    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status,CASE WHEN el.Event_ID IS NOT NULL OR wl.Event_ID IS NOT NULL THEN 'Acknowledged' 
+    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status, MIN(es.detected_file) AS imagepath,CASE WHEN el.Event_ID IS NOT NULL OR wl.Event_ID IS NOT NULL THEN 'Acknowledged' 
     ELSE 'Unacknowledged' END AS eventstatus, MAX(el.feedback) AS feedback,MAX(el.Row_upd_date) Acknowleged_time,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status FROM ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id
     JOIN deptmaster dt ON dt.dept_id = dm.dept_id LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id
-    LEFT JOIN ${logTable} el ON el.event_id = em.Event_ID LEFT JOIN ${whatsappTable} wl ON wl.Event_id = em.Event_ID
-    JOIN ${eventuserstatus} eu ON eu.Event_ID = em.Event_ID WHERE eu.user_id = ${querydata.userid} and em.enddate BETWEEN '${querydata.starttime}' and '${querydata.endtime}'  GROUP BY em.Event_ID LIMIT ${offset}, ${config.listPerPage}`;
+    LEFT JOIN ${eventaistatus} es ON es.event_id = em.Event_ID LEFT JOIN ${logTable} el ON el.event_id = em.Event_ID LEFT JOIN ${whatsappTable} wl ON wl.Event_id = em.Event_ID
+    JOIN ${eventuserstatus} eu ON eu.Event_ID = em.Event_ID WHERE em.enddate BETWEEN '${querydata.starttime}' and '${querydata.endtime}' AND eu.user_id = ${querydata.userid} GROUP BY em.Event_ID LIMIT ${offset}, ${config.listPerPage}`;
   }else if(querydata.filtertype == 'unacknowledged'){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-     dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+     dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status FROM ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
-    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id WHERE em.Event_ID NOT IN (SELECT el.Event_ID FROM ${logTable} el) AND em.Event_ID NOT IN (SELECT wl.Event_id FROM ${whatsappTable} wl) AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
+    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN (SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} es GROUP BY Event_ID
+    ) ep ON ep.Event_ID = em.Event_ID WHERE em.Event_ID NOT IN (SELECT el.Event_ID FROM ${logTable} el) AND em.Event_ID NOT IN (SELECT wl.Event_id FROM ${whatsappTable} wl) AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
     WHERE eu.user_id = ${querydata.userid}) AND (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
   }else if(querydata.filtertype == 'acknowledged'){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage,em.IsHumanDetected,
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain,dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name,
-    dt.Dept_Location,  dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name, bm.site_starttime Notifytime,bm.branch_id siteid, bm.contact_person,cm.Camera_Status, el.feedback,el.Row_upd_date Acknowledged_time,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+    dt.Dept_Location,  dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name, bm.site_starttime Notifytime,bm.branch_id siteid, bm.contact_person,cm.Camera_Status, ep.imagepath, el.feedback,el.Row_upd_date Acknowledged_time,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status
     FROM  ${eventTable}  em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id
     LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id
+    LEFT JOIN (SELECT Event_ID, MIN(eventpath) AS imagepath FROM ${eventstatus} es GROUP BY Event_ID) ep ON ep.Event_ID = em.Event_ID
     JOIN ${logTable} el ON el.event_id = em.Event_ID WHERE EXISTS (SELECT 1 FROM ${eventuserstatus} eu WHERE eu.Event_id = em.Event_ID AND eu.user_id = ${querydata.userid}) and 
     (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
   }else if(querydata.filtertype == 'whatsapp'){
@@ -3853,22 +3839,24 @@ async function GetUserReport(page,event){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
      cm.camera_id, cm.camera_name, dm.device_name,dm.IP_Domain, dm.RTSP_port, dm.IP_port,dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id,dt.Dept_name, dt.Dept_Location, 
      dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 AS Userrole1, 
-     dc.User_role2 AS Userrole2, dc.User_role3 AS Userrole3, bm.Branch_name,bm.site_starttime AS Notifytime,bm.contact_person,bm.branch_id AS siteid, cm.Camera_Status,
+     dc.User_role2 AS Userrole2, dc.User_role3 AS Userrole3, bm.Branch_name,bm.site_starttime AS Notifytime,bm.contact_person,bm.branch_id AS siteid, cm.Camera_Status, ep.imagepath,
      CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id AND status = 1 AND ECStype = 'Two way') THEN TRUE ELSE FALSE 
      END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id  AND status = 1 AND ECStype = 'PA system') THEN TRUE ELSE FALSE 
      END AS oneway_status,el.feedback, el.Row_upd_date AS Acknowledged_time FROM ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id
      JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN 
-     branchmaster bm ON bm.branch_id = dt.branch_id
+     branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN 
+    ( SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} es GROUP BY  Event_ID) ep ON ep.Event_ID = em.Event_ID
     LEFT JOIN ${logTable} el ON el.Event_id = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_id FROM ${whatsappTable} wl)AND em.Event_ID IN ( SELECT eu.Event_id 
     FROM ${eventuserstatus} eu WHERE eu.user_id = ${querydata.userid}) AND em.Row_updated_date BETWEEN '${querydata.starttime}' AND '${querydata.endtime}'
     GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage};`
   }else if(querydata.filtertype == 'ai'){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.contact_person, bm.branch_id siteid,cm.Camera_Status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.contact_person, bm.branch_id siteid,cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status,el.feedback, el.Row_upd_date AS Acknowledged_time FROM  ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
-    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id JOIN ${logTable} el ON el.Event_ID = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_ID FROM ${logTable} wl where wl.feedback like '%AI%') AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
+    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN (SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} eai GROUP BY eai.Event_ID
+    ) ep ON ep.Event_ID = em.Event_ID JOIN ${logTable} el ON el.Event_ID = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_ID FROM ${logTable} wl where wl.feedback like '%AI%') AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
     WHERE eu.user_id = ${querydata.userid}) and (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
   }else{
     return helper.getErrorResponse(false,"Unknown filter type.","Please choose the valid filter type",secret);
@@ -4298,15 +4286,12 @@ async function GetEventCount(event){
       return helper.getErrorResponse(false,"Login sessiontoken Invalid. Please provide the valid sessiontoken","GET EVENT COUNT","");
     }
     var secret=event.STOKEN.substring(0,16);
-   const sql = await db.query(`SELECT um.username,COALESCE(eu.totalevents, 0) AS totalevents,COALESCE(el.ackevent, 0) AS ackevent,COALESCE(ua.unackevent, 0) AS unackevent,
-   COALESCE(wl.whatsapp, 0) AS whatsapp FROM usermaster um LEFT JOIN (SELECT eu.user_id, COUNT(eu.event_id) AS totalevents FROM eventuser eu
-   INNER JOIN eventmaster em ON eu.event_id = em.event_id GROUP BY eu.user_id) eu ON eu.user_id = um.user_id LEFT JOIN ( SELECT el.created_by AS user_id,
-   COUNT(DISTINCT el.event_id) AS ackevent FROM eventlog el INNER JOIN eventmaster em ON el.event_id = em.event_id GROUP BY el.created_by) el ON el.user_id = um.user_id
-   LEFT JOIN (SELECT eu.user_id,COUNT(DISTINCT eu.event_id) AS unackevent FROM eventuser eu INNER JOIN eventmaster em ON eu.event_id = em.event_id
-   LEFT JOIN eventlog el ON eu.event_id = el.event_id AND eu.user_id = el.created_by WHERE el.event_id IS NULL GROUP BY eu.user_id
-   ) ua ON ua.user_id = um.user_id LEFT JOIN ( SELECT wl.user_id,COUNT(DISTINCT wl.event_id) AS whatsapp FROM whatsapplog wl INNER JOIN eventmaster em ON wl.event_id = em.event_id 
-  GROUP BY wl.user_id) wl ON wl.user_id = um.user_id 
-   WHERE um.user_id = ${userid}`);
+   const sql = await db.query(`select um.username ,COALESCE(eu.totalevents , 0) as totalevents,COALESCE(el.ackevent,0) as ackevent,COALESCE(ua.unackevent,0 ) as unackevent,COALESCE(wl.whatsapp,0) as whatsapp
+                               from usermaster um LEFT JOIN (SELECT user_id,event_id,COUNT(distinct event_id) as totalevents from eventuser GROUP BY user_id) eu ON eu.user_id=um.user_id
+                               LEFT JOIN (select created_by as user_id,event_id, count(DISTINCT event_id) AS ackevent FROM eventlog GROUP BY created_by) el ON el.user_id = um.user_id
+                               LEFT JOIN (select eu.user_id, eu.event_id as unack_event_id, COUNT(DISTINCT eu.event_id ) as unackevent from eventuser eu LEFT JOIN eventlog el ON eu.event_id = 
+                               el.event_id where el.event_id IS NULL GROUP BY eu.user_id) ua ON ua.user_id = um.user_id LEFT JOIN (SELECT user_id,event_id,COUNT(DISTINCT event_id) As whatsapp FROM whatsapplog
+                               GROUP BY user_id) wl ON wl.user_id = um.user_id WHERE um.user_id = ${userid}`);
     const sql1 = await db.query(`select SEC_TO_TIME(SUM(TIMESTAMPDIFF(SECOND, break_time,Break_finished_time))) as total_break from usersbreak where user_id = ${userid}`);
     try
     {
@@ -4491,171 +4476,6 @@ async function FetchWhatsappbyCam(event){
 //###############################################################################################################################################################################################
 //###############################################################################################################################################################################################
 
-// async function userDailyReport(event){
-//   try {
-//     if(event.hasOwnProperty('STOKEN')==false){
-//       return helper.getErrorResponse(false,"Login sessiontoken missing. Please provide the Login sessiontoken","FETCH REPORT OF THE USER","");
-//     }
-//     //CHECK IF THE SESSIONTOKEN SIZE IS VALID OR NOT
-//     if(event.STOKEN.length > 50 || event.STOKEN.length  < 30){
-//       return helper.getErrorResponse(false,"Login sessiontoken size invalid. Please provide the valid Sessiontoken","FETCH REPORT OF THE USER","");
-//     }
-//     // CHECK IF THE GIVEN SESSIONTOKEN IS VALID OR NOT
-//     const [result] =await db.spcall('CALL SP_STOKEN_CHECK(?,@result,@custid,@custname,@custemail); select @result,@custid,@custname,@custemail',[event.STOKEN]);
-//     const objectvalue = result[1][0];
-//     const userid = objectvalue["@result"];
-//     if(userid == null){
-//       return helper.getErrorResponse(false,"Login sessiontoken Invalid. Please provide the valid sessiontoken","FETCH REPORT OF THE USER","");
-//     }
-//     var secret=event.STOKEN.substring(0,16);
-//       // CHECK IF THE QUERYSTRING IS GIVEN AS AN INPUT
-//   if(event.hasOwnProperty("querystring")==false){
-//     return helper.getErrorResponse(false,"Querystring missing. Please provide the querystring","FETCH REPORT OF THE USER","");
-//   }
-//   var secret=event.STOKEN.substring(0,16);
-
-//   var querydata;
-  
-//   try{ 
-//      querydata = await helper.decrypt(event.querystring,secret);
-//     //  // console("decrypted querydata->"+querydata);
-//   }
-//   catch(ex){
-//     return helper.getErrorResponse(false,"Querystring Invalid error. Please provide the valid querystring.","FETCH REPORT OF THE USER",secret);
-//   }
-//   try{
-//     querydata= JSON.parse(querydata);
-//   }
-//   catch(ex){
-//     return helper.getErrorResponse(false,"Querystring JSON error. Please provide the valid JSON","FETCH REPORT OF THE USER",secret);
-//   } 
-//   if(querydata.hasOwnProperty('reportdate') == false){
-//      return helper.getErrorResponse(false,"Report Date missing. Please provide the valid report date.","FETCH REPORT OF THE USER",secret);
-//   }
-//   const reportDate = new Date(querydata.reportdate); 
-//   if (isNaN(reportDate.getTime())) {
-//    return helper.getErrorResponse(false, "Invalid report date format.", "FETCH REPORT OF THE USER", secret);
-//   }
-//   const endDate = new Date(reportDate);
-//   endDate.setDate(endDate.getDate() + 1);
-
-// // Format both dates to 'YYYY-MM-DD 07:10:00'
-// function formatDate(date) {
-//   const yyyy = date.getFullYear();
-//   const mm = ('0' + (date.getMonth() + 1)).slice(-2);
-//   const dd = ('0' + date.getDate()).slice(-2);
-//   return `${yyyy}-${mm}-${dd} 11:59:00`;
-// }
-// function logindate(date) {
-//   const yyyy = date.getFullYear();
-//   const mm = ('0' + (date.getMonth() + 1)).slice(-2);
-//   const dd = ('0' + date.getDate()).slice(-2);
-//   return `${yyyy}-${mm}-${dd} 12:00:00`;
-// }
-
-// function userbreak(date) {
-//   const yyyy = date.getFullYear();
-//   const mm = ('0' + (date.getMonth() + 1)).slice(-2);
-//   const dd = ('0' + date.getDate()).slice(-2);
-//   return `${yyyy}-${mm}-${dd} 12:00:00`;
-// }
-
-// const startDatetime = logindate(reportDate); // '2025-04-03 07:10:00'
-// const endDatetime = formatDate(endDate);
-// const logintime = logindate(reportDate);
-// const breakstarttime = userbreak(reportDate);
-
-// const startTime = new Date(startDatetime);
-// const endTime = new Date(endDatetime);
-// const currentDate = new Date();
-// const currentDay = helper.formatDate(currentDate, 'yyyyMMdd');
-// const currentHour = currentDate.getHours();
-// // Decide archive date based on event start time:
-// // If event occurs at or after 12:00, the event is archived using next day’s date.
-// let archiveDate;
-// if (startTime.getHours() >= 12) {
-//   let nextDay = new Date(startTime);
-//   nextDay.setDate(nextDay.getDate() + 1);
-//   archiveDate = helper.formatDate(nextDay, 'yyyyMMdd');
-// } else {
-//   archiveDate = helper.formatDate(startTime, 'yyyyMMdd');
-// }
-
-// // Determine which tables to use.
-// const startDay = helper.formatDate(startTime, 'yyyyMMdd');
-// const endDay = helper.formatDate(endTime, 'yyyyMMdd');
-// let eventTable, logTable, whatsappTable, eventaistatus,eventuserstatus,userbreaks;
-// if (startDay < currentDay && endDay < currentDay) {
-//   // Both dates in the past: use archived tables with the computed archiveDate.
-//   eventTable = `eventmaster_${archiveDate}`;
-//   logTable = `eventlog_${archiveDate}`;
-//   whatsappTable = `whatsapplog_${archiveDate}`;
-//   eventaistatus = `eventaistatus_${archiveDate}`;
-//   eventuserstatus = `eventuser_${archiveDate}`;
-//   userbreaks = `usersbreak_${archiveDate}`;
-// } else if (startDay === currentDay && (currentHour <= 12 || currentHour >= 18)) {
-//   // For the current day, use live tables (so you get full time details).
-//   eventTable = `eventmaster`;
-//   logTable = `eventlog`;
-//   whatsappTable = `whatsapplog`;
-//   eventaistatus = `eventaistatus`;
-//   eventuserstatus = `eventuser`;
-//   userbreaks = `usersbreak`;
-// } else if (startDay > currentDay && endDay > currentDay) {
-//   // Future dates: use live tables.
-//   eventTable = `eventmaster`;
-//   logTable = `eventlog`;
-//   whatsappTable = `whatsapplog`;
-//   eventaistatus = `eventaistatus`;
-//   eventuserstatus = `eventuser`;
-//   userbreaks = `usersbreak`;
-// } else {
-//   if (currentHour < 12) {
-//     // Before noon: use live tables.
-//     eventTable = 'eventmaster';
-//     logTable = 'eventlog';
-//     whatsappTable = 'whatsapplog';
-//     eventaistatus = 'eventaistatus';
-//     eventuserstatus = `eventuser`;
-//     userbreaks = `usersbreak`;
-//   }else{
-//   // Spanning dates: use UNION of archived and live tables.
-//   eventTable = `eventmaster_${archiveDate}`;
-//   logTable = `eventlog_${archiveDate}`;
-//   whatsappTable = `whatsapplog_${archiveDate}`;
-//   eventaistatus = `eventaistatus_${archiveDate}`;
-//   eventuserstatus = `eventuser_${archiveDate}`;
-//   userbreaks = `usersbreak_${archiveDate}`;
-//   }
-// } 
-// var sql;
-
-//   try{
-//      sql = await db.query(`SELECT um.user_id,um.username,COALESCE(ul.first_logged_in, 'N/A') AS first_login_time, COALESCE(ul.last_logged_out, 'N/A') AS last_logout_time,COALESCE(SUM(ub.break_duration_minutes), 0) AS availed_break_time,
-//     '01:00:00' AS allowed_break_time, COALESCE(eu.totalevent, 0) AS total_events, COALESCE(el.ackevent, 0) AS acknowledged_events,(COALESCE(eu.totalevent, 0) - COALESCE(el.ackevent, 0)) AS unacknowledged_events,
-//     COALESCE(wl.whatsapp, 0) AS whatsapp_events FROM usermaster um LEFT JOIN ( SELECT user_id,COUNT(DISTINCT event_id) AS totalevent FROM ${eventuserstatus} WHERE Row_updated_date BETWEEN ? AND ?
-//     GROUP BY user_id) eu ON eu.user_id = um.user_id LEFT JOIN (SELECT Created_by AS user_id,COUNT(DISTINCT event_id) AS ackevent FROM ${logTable} WHERE Row_upd_date BETWEEN ? AND ?
-//     GROUP BY Created_by) el ON el.user_id = um.user_id LEFT JOIN (SELECT user_id,COUNT(DISTINCT event_id) AS whatsapp FROM ${whatsappTable}  WHERE Row_updated_date BETWEEN ? AND ?
-//     GROUP BY user_id) wl ON wl.user_id = um.user_id LEFT JOIN (SELECT  user_id,  MIN(logged_in) AS first_logged_in,MAX(logged_out) AS last_logged_out FROM userlog WHERE deleted_flag = 0 AND logged_in >= ? AND (logged_out <= ? OR logged_out IS NULL) GROUP BY user_id
-//     ) ul ON ul.user_id = um.user_id LEFT JOIN (SELECT user_id, SUM(TIMESTAMPDIFF(MINUTE, Break_time, Break_finished_time)) AS break_duration_minutes FROM ${userbreaks} WHERE Row_updated_date >= ?
-//     GROUP BY user_id) ub ON ub.user_id = um.user_id WHERE um.user_design IN ('executive', 'supervisor', 'administrator') AND um.status = 1 AND um.Customer_ID = 0 AND eu.totalevent > 0
-//     GROUP BY um.user_id, um.username, ul.first_logged_in, ul.last_logged_out;
-//     `,[startDatetime,endDatetime,startDatetime,endDatetime,startDatetime,endDatetime,logintime,endDatetime,breakstarttime]);
-//   }catch(er){
-//     return helper.getErrorResponse(false,"There is no Report to show",er.message,secret);
-//   }
-
-//     if(sql[0]){
-//       return helper.getSuccessResponse(true,"User's Daily report Fetched Successfully",sql,secret);
-//     }else{
-//       return helper.getErrorResponse(false,"There is no Report to show",sql,secret);
-//     }
-    
-//   } catch (er) {
-//     return helper.getErrorResponse(false,"Internal error. Please contact Administration",er,secret);
-//   }
-// }
-
 async function userDailyReport(event){
   try {
     if(event.hasOwnProperty('STOKEN')==false){
@@ -4694,164 +4514,118 @@ async function userDailyReport(event){
   catch(ex){
     return helper.getErrorResponse(false,"Querystring JSON error. Please provide the valid JSON","FETCH REPORT OF THE USER",secret);
   } 
-  // querydata = {startdate:"2025-06-07 18:00:00",enddate:"2025-06-08 18:00:00"};
-  if(querydata.hasOwnProperty('startdate') == false){
-     return helper.getErrorResponse(false,"Start Date missing. Please provide the valid Start date.","FETCH REPORT OF THE USER",secret);
+  if(querydata.hasOwnProperty('reportdate') == false){
+     return helper.getErrorResponse(false,"Report Date missing. Please provide the valid report date.","FETCH REPORT OF THE USER",secret);
   }
+  const reportDate = new Date(querydata.reportdate); 
+  if (isNaN(reportDate.getTime())) {
+   return helper.getErrorResponse(false, "Invalid report date format.", "FETCH REPORT OF THE USER", secret);
+  }
+  const endDate = new Date(reportDate);
+  endDate.setDate(endDate.getDate() + 1);
 
-  if(querydata.hasOwnProperty('enddate') == false){
-    return helper.getErrorResponse(false,"End Date missing. Please provide the valid end date.","FETCH REPORT OF THE USER",secret);
- }
+// Format both dates to 'YYYY-MM-DD 07:10:00'
+function formatDate(date) {
+  const yyyy = date.getFullYear();
+  const mm = ('0' + (date.getMonth() + 1)).slice(-2);
+  const dd = ('0' + date.getDate()).slice(-2);
+  return `${yyyy}-${mm}-${dd} 11:59:00`;
+}
+function logindate(date) {
+  const yyyy = date.getFullYear();
+  const mm = ('0' + (date.getMonth() + 1)).slice(-2);
+  const dd = ('0' + date.getDate()).slice(-2);
+  return `${yyyy}-${mm}-${dd} 12:00:00`;
+}
 
-//  const offset = helper.getOffset(page, config.listPerPage);
-    const startTime = new Date(querydata.startdate);
-    const endTime = new Date(querydata.enddate);
-    const currentDate = new Date();
-    const currentDay = helper.formatDate(currentDate, 'yyyyMMdd');
-    const currentHour = currentDate.getHours();
-    const previousDay = helper.formatDate(new Date(Date.now() - 86400000), 'yyyyMMdd');
-    
-    let archiveDate;
-    if (startTime.getHours() >= 12) {
-      let nextDay = new Date(startTime);
-      nextDay.setDate(nextDay.getDate() + 1);
-      archiveDate = helper.formatDate(nextDay, 'yyyyMMdd');
-    } else {
-      archiveDate = helper.formatDate(startTime, 'yyyyMMdd');
-    }
-    
-    const startDay = helper.formatDate(startTime, 'yyyyMMdd');
-    const endDay = helper.formatDate(endTime, 'yyyyMMdd');
-    
-    let eventTable, logTable, whatsappTable, eventaistatus, eventuserstatus, userbreaks;
-    
-    if (startDay === endDay) {
-      // Single day
-      if (startDay === currentDay) {
-        // Today
-        if (currentHour >= 12 && startTime.getHours() < 12) {
-          // Between morning & noon of same day — mix archive & live
-          eventTable = `(SELECT * FROM eventmaster_${currentDay} UNION ALL SELECT * FROM eventmaster)`;
-          logTable = `(SELECT * FROM eventlog_${currentDay} UNION ALL SELECT * FROM eventlog)`;
-          whatsappTable = `(SELECT * FROM whatsapplog_${currentDay} UNION ALL SELECT * FROM whatsapplog)`;
-          eventaistatus = `(SELECT * FROM eventaistatus_${currentDay} UNION ALL SELECT * FROM eventaistatus)`;
-          eventuserstatus = `(SELECT * FROM eventuser_${currentDay} UNION ALL SELECT * FROM eventuser)`;
-          userbreaks = `(SELECT * FROM usersbreak_${currentDay} UNION ALL SELECT * FROM usersbreak)`;
-        } else if (currentHour < 12 && startTime.getHours() < 12) {
-          // Early morning only
-          eventTable = `eventmaster`;
-          logTable = `eventlog`;
-          whatsappTable = `whatsapplog`;
-          eventaistatus = `eventaistatus`;
-          eventuserstatus = `eventuser`;
-          userbreaks = `usersbreak`;
-        }
-        else if (currentHour >= 12 && startTime.getHours() >= 12 && endTime.getHours() < 24) {
-          // Early morning only
-          eventTable = `eventmaster`;
-          logTable = `eventlog`;
-          whatsappTable = `whatsapplog`;
-          eventaistatus = `eventaistatus`;
-          eventuserstatus = `eventuser`;
-          userbreaks = `usersbreak`;
-        } else {
-          // After 12 noon
-          eventTable = `eventmaster_${currentDay}`;
-          logTable = `eventlog_${currentDay}`;
-          whatsappTable = `whatsapplog_${currentDay}`;
-          eventaistatus = `eventaistatus_${currentDay}`;
-          eventuserstatus = `eventuser_${currentDay}`;
-          userbreaks = `usersbreak_${currentDay}`;
-        }
-      } else if (startDay == previousDay && currentHour < 12) {
-        // Yesterday before noon = still live
-        eventTable = `eventmaster`;
-        logTable = `eventlog`;
-        whatsappTable = `whatsapplog`;
-        eventaistatus = `eventaistatus`;
-        eventuserstatus = `eventuser`;
-        userbreaks = `usersbreak`;
-      } else if(startDay == previousDay && endDay == previousDay && currentHour >= 12 && startTime.getHours() >= 12 && endTime.getHours() < 24){
-        // Archived
-        eventTable = `eventmaster_${currentDay}`;
-        logTable = `eventlog_${currentDay}`;
-        whatsappTable = `whatsapplog_${currentDay}`;
-        eventaistatus = `eventaistatus_${currentDay}`;
-        eventuserstatus = `eventuser_${currentDay}`;
-        userbreaks = `usersbreak_${currentDay}`;
-      }else{
-        // Archived
-        eventTable = `eventmaster_${endDay}`;
-        logTable = `eventlog_${endDay}`;
-        whatsappTable = `whatsapplog_${endDay}`;
-        eventaistatus = `eventaistatus_${endDay}`;
-        eventuserstatus = `eventuser_${endDay}`;
-        userbreaks = `usersbreak_${currentDay}`;
-      }
-    } else {
-      // Multi-day range
-      if (endDay < currentDay) {
-        // Totally archived
-        eventTable = `(SELECT * FROM eventmaster_${startDay} UNION ALL SELECT * FROM eventmaster_${endDay})`;
-        logTable = `(SELECT * FROM eventlog_${startDay} UNION ALL SELECT * FROM eventlog_${endDay})`;
-        whatsappTable = `(SELECT * FROM whatsapplog_${startDay} UNION ALL SELECT * FROM whatsapplog_${endDay})`;
-        eventaistatus = `(SELECT * FROM eventaistatus_${startDay} UNION ALL SELECT * FROM eventaistatus_${endDay})`;
-        eventuserstatus = `(SELECT * FROM eventuser_${startDay} UNION ALL SELECT * FROM eventuser_${endDay})`;
-        userbreaks = `(SELECT * FROM usersbreak_${startDay} UNION ALL SELECT * FROM usersbreak_${endDay})`;
-      } else if (startDay < currentDay && endDay === currentDay) {
-        // Spanning archive + today
-        if (currentHour < 12) {
-          // Still before noon → use live
-          eventTable = `eventmaster`;
-          logTable = `eventlog`;
-          whatsappTable = `whatsapplog`;
-          eventaistatus = `eventaistatus`;
-          eventuserstatus = `eventuser`;
-          userbreaks = `usersbreak`;
-        }else if(startDay == previousDay && endDay == currentDay && currentHour >= 12){
-          eventTable = `(SELECT * FROM eventmaster_${currentDay} UNION ALL SELECT * FROM eventmaster)`;
-          logTable = `(SELECT * FROM eventlog_${currentDay} UNION ALL SELECT * FROM eventlog)`;
-          whatsappTable = `(SELECT * FROM whatsapplog_${currentDay} UNION ALL SELECT * FROM whatsapplog)`;
-          eventaistatus = `(SELECT * FROM eventaistatus_${currentDay} UNION ALL SELECT * FROM eventaistatus)`;
-          eventuserstatus = `(SELECT * FROM eventuser_${currentDay} UNION ALL SELECT * FROM eventuser)`;
-          userbreaks = `(SELECT * FROM usersbreak_${currentDay} UNION ALL SELECT * FROM usersbreak)`;       }
-         else {
-          // After noon → mix
-          eventTable = `(SELECT * FROM eventmaster_${startDay} UNION ALL SELECT * FROM eventmaster)`;
-          logTable = `(SELECT * FROM eventlog_${startDay} UNION ALL SELECT * FROM eventlog)`;
-          whatsappTable = `(SELECT * FROM whatsapplog_${startDay} UNION ALL SELECT * FROM whatsapplog)`;
-          eventaistatus = `(SELECT * FROM eventaistatus_${startDay} UNION ALL SELECT * FROM eventaistatus)`;
-          eventuserstatus = `(SELECT * FROM eventuser_${startDay} UNION ALL SELECT * FROM eventuser)`;
-          userbreaks = `(SELECT * FROM usersbreak_${startDay} UNION ALL SELECT * FROM usersbreak)`;
-        }
-      } else {
-        // Future stuff
-        eventTable = `eventmaster`;
-        logTable = `eventlog`;
-        whatsappTable = `whatsapplog`;
-        eventaistatus = `eventaistatus`;
-        eventuserstatus = `eventuser`;
-        userbreaks = `usersbreak`;
-      }
-    }
+function userbreak(date) {
+  const yyyy = date.getFullYear();
+  const mm = ('0' + (date.getMonth() + 1)).slice(-2);
+  const dd = ('0' + date.getDate()).slice(-2);
+  return `${yyyy}-${mm}-${dd} 18:00:00`;
+}
+
+const startDatetime = logindate(reportDate); // '2025-04-03 07:10:00'
+const endDatetime = formatDate(endDate);
+const logintime = logindate(reportDate);
+const breakstarttime = userbreak(reportDate);
+
+const startTime = new Date(startDatetime);
+const endTime = new Date(endDatetime);
+const currentDate = new Date();
+const currentDay = helper.formatDate(currentDate, 'yyyyMMdd');
+const currentHour = currentDate.getHours();
+// Decide archive date based on event start time:
+// If event occurs at or after 12:00, the event is archived using next day’s date.
+let archiveDate;
+if (startTime.getHours() >= 12) {
+  let nextDay = new Date(startTime);
+  nextDay.setDate(nextDay.getDate() + 1);
+  archiveDate = helper.formatDate(nextDay, 'yyyyMMdd');
+} else {
+  archiveDate = helper.formatDate(startTime, 'yyyyMMdd');
+}
+
+// Determine which tables to use.
+const startDay = helper.formatDate(startTime, 'yyyyMMdd');
+const endDay = helper.formatDate(endTime, 'yyyyMMdd');
+let eventTable, logTable, whatsappTable, eventaistatus,eventuserstatus,userbreaks;
+if (startDay < currentDay && endDay < currentDay) {
+  // Both dates in the past: use archived tables with the computed archiveDate.
+  eventTable = `eventmaster_${archiveDate}`;
+  logTable = `eventlog_${archiveDate}`;
+  whatsappTable = `whatsapplog_${archiveDate}`;
+  eventaistatus = `eventaistatus_${archiveDate}`;
+  eventuserstatus = `eventuser_${archiveDate}`;
+  userbreaks = `usersbreak_${archiveDate}`;
+} else if (startDay === currentDay && (currentHour <= 12 || currentHour >= 18)) {
+  // For the current day, use live tables (so you get full time details).
+  eventTable = `eventmaster`;
+  logTable = `eventlog`;
+  whatsappTable = `whatsapplog`;
+  eventaistatus = `eventaistatus`;
+  eventuserstatus = `eventuser`;
+  userbreaks = `usersbreak`;
+} else if (startDay > currentDay && endDay > currentDay) {
+  // Future dates: use live tables.
+  eventTable = `eventmaster`;
+  logTable = `eventlog`;
+  whatsappTable = `whatsapplog`;
+  eventaistatus = `eventaistatus`;
+  eventuserstatus = `eventuser`;
+  userbreaks = `usersbreak`;
+} else {
+  if (currentHour < 12) {
+    // Before noon: use live tables.
+    eventTable = 'eventmaster';
+    logTable = 'eventlog';
+    whatsappTable = 'whatsapplog';
+    eventaistatus = 'eventaistatus';
+    eventuserstatus = `eventuser`;
+    userbreaks = `usersbreak`;
+  }else{
+  // Spanning dates: use UNION of archived and live tables.
+  eventTable = `eventmaster_${archiveDate}`;
+  logTable = `eventlog_${archiveDate}`;
+  whatsappTable = `whatsapplog_${archiveDate}`;
+  eventaistatus = `eventaistatus_${archiveDate}`;
+  eventuserstatus = `eventuser_${archiveDate}`;
+  userbreaks = `usersbreak_${archiveDate}`;
+  }
+} 
 var sql;
 
   try{
-      sql = await db.query(`SELECT um.user_id,um.username,COALESCE(ul.first_logged_in, 'N/A') AS first_login_time,COALESCE(ul1.last_logged_out, 'N/A') AS last_logout_time,
-      COALESCE(SUM(ub.break_duration_minutes), 0) AS availed_break_time,CASE 
-      WHEN TIME(ul.first_logged_in) BETWEEN '17:00:00' AND '19:00:00' THEN '01:30:00'
-      ELSE '01:00:00'
-  END AS allowed_break_time,COALESCE(eu.totalevent, 0) AS total_events,COALESCE(el.ackevent, 0) AS 
-      acknowledged_events,(COALESCE(eu.totalevent, 0) - COALESCE(el.ackevent, 0)) AS unacknowledged_events,COALESCE(wl.whatsapp, 0) AS whatsapp_events FROM usermaster um LEFT JOIN (
-      SELECT eul.user_id, COUNT(DISTINCT eul.event_id) AS totalevent FROM ${eventuserstatus} eul WHERE eul.Row_updated_date BETWEEN ? AND ? GROUP BY eul.user_id ) eu ON eu.user_id = 
-      um.user_id LEFT JOIN (SELECT ell.Created_by AS user_id, COUNT(DISTINCT ell.event_id) AS ackevent FROM ${logTable} ell WHERE ell.Row_upd_date BETWEEN ? AND ?
-      GROUP BY ell.Created_by) el ON el.user_id = um.user_id LEFT JOIN (SELECT wbl.user_id, COUNT(DISTINCT wbl.event_id) AS whatsapp FROM ${whatsappTable} wbl
-      WHERE wbl.Row_updated_date BETWEEN ? AND ? GROUP BY wbl.user_id ) wl ON wl.user_id = um.user_id LEFT JOIN ( SELECT user_id, MIN(logged_in) AS first_logged_in FROM userlog WHERE 
-      deleted_flag = 0 AND logged_in >= ? GROUP BY user_id) ul ON ul.user_id = um.user_id LEFT JOIN ( SELECT user_id, MAX(logged_out) AS last_logged_out FROM userlog WHERE 
-      deleted_flag = 0 AND logged_out <= ? GROUP BY user_id) ul1 ON ul1.user_id = um.user_id
-      LEFT JOIN (SELECT ubl.user_id, SUM(TIMESTAMPDIFF(MINUTE, ubl.Break_time, ubl.Break_finished_time)) AS break_duration_minutes FROM ${userbreaks} ubl WHERE ubl.Row_updated_date >= ?
-      GROUP BY ubl.user_id) ub ON ub.user_id = um.user_id WHERE um.user_design IN ('executive', 'supervisor') AND um.status = 1 AND um.Customer_ID = 0
-      AND eu.totalevent > 0 GROUP BY um.user_id, um.username, ul.first_logged_in, ul1.last_logged_out;`,[startTime,endTime,startTime,endTime,startTime,endTime,startTime,endTime,startTime]);
+     sql = await db.query(`SELECT um.user_id,um.username,COALESCE(ul.first_logged_in, 'N/A') AS first_login_time, COALESCE(ul.last_logged_out, 'N/A') AS last_logout_time,COALESCE(SUM(ub.break_duration_minutes), 0) AS availed_break_time,
+    '01:00:00' AS allowed_break_time, COALESCE(eu.totalevent, 0) AS total_events, COALESCE(el.ackevent, 0) AS acknowledged_events,(COALESCE(eu.totalevent, 0) - COALESCE(el.ackevent, 0)) AS unacknowledged_events,
+    COALESCE(wl.whatsapp, 0) AS whatsapp_events FROM usermaster um LEFT JOIN ( SELECT user_id,COUNT(DISTINCT event_id) AS totalevent FROM ${eventuserstatus} WHERE Row_updated_date BETWEEN ? AND ?
+    GROUP BY user_id) eu ON eu.user_id = um.user_id LEFT JOIN (SELECT Created_by AS user_id,COUNT(DISTINCT event_id) AS ackevent FROM ${logTable} WHERE Row_upd_date BETWEEN ? AND ?
+    GROUP BY Created_by) el ON el.user_id = um.user_id LEFT JOIN (SELECT user_id,COUNT(DISTINCT event_id) AS whatsapp FROM ${whatsappTable}  WHERE Row_updated_date BETWEEN ? AND ?
+    GROUP BY user_id) wl ON wl.user_id = um.user_id LEFT JOIN (SELECT  user_id,  MIN(logged_in) AS first_logged_in,MAX(logged_out) AS last_logged_out FROM userlog WHERE deleted_flag = 0 AND logged_in >= ? AND (logged_out <= ? OR logged_out IS NULL) GROUP BY user_id
+    ) ul ON ul.user_id = um.user_id LEFT JOIN (SELECT user_id, SUM(TIMESTAMPDIFF(MINUTE, Break_time, Break_finished_time)) AS break_duration_minutes FROM ${userbreaks} WHERE Row_updated_date >= ?
+    GROUP BY user_id) ub ON ub.user_id = um.user_id WHERE um.user_design IN ('executive', 'supervisor', 'administrator') AND um.status = 1 AND um.Customer_ID = 0 AND eu.totalevent > 0
+    GROUP BY um.user_id, um.username, ul.first_logged_in, ul.last_logged_out;
+    `,[startDatetime,endDatetime,startDatetime,endDatetime,startDatetime,endDatetime,logintime,endDatetime,breakstarttime]);
   }catch(er){
     return helper.getErrorResponse(false,"There is no Report to show",er.message,secret);
   }
@@ -4866,6 +4640,7 @@ var sql;
     return helper.getErrorResponse(false,"Internal error. Please contact Administration",er,secret);
   }
 }
+
 module.exports = {
   create,
   createSnapshot,

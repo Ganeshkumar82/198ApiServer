@@ -130,7 +130,7 @@ var utype  = 3;
     }}
   //End of Validation RULE 3. Check if the inout is email id or user name
   //Begin Validation:- 3a. Email/username is entered,less than 5 char length
-  if (queryData.username.length<5)
+  if (queryData.username.length <3)
   {
     if (isEmailID==false)
       return helper.getErrorResponse(false,"Invalid credentials. Please verify your username.","LOGIN",user.Secret);

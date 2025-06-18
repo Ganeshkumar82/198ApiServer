@@ -1325,7 +1325,7 @@ async function addEventFeedback(event) {
     let eventIds = Array.isArray(evtData.eventid) ? evtData.eventid : [evtData.eventid];
     let allResults = [];
     let eventIdsJson = JSON.stringify(eventIds);
-    const [result1] = await db.spcall('CALL SP_UPSERT_EVENT_LOG_BULK(?, ?, ?, ?,@affected_rows); select @affected_rows;', [eventIdsJson, evtData.flag, evtData.feedback, userid]);
+    const [result1] = await db.spcall('CALL SP_UPDATE_EVENT_LOG_BULK(?, ?, ?, ?,@affected_rows); select @affected_rows;', [eventIdsJson, evtData.flag, evtData.feedback, userid]);
     const objectvalue1 = result1[1][0];
  
     if (objectvalue1["@affected_rows"] > 0) {
@@ -1337,10 +1337,8 @@ async function addEventFeedback(event) {
           // Encrypt the results and return
           const encryptedResponse = helper.encrypt(JSON.stringify(allResults), secret);
           return {encryptedResponse}
-  } catch (er) {
-    if(er.code === 'ER_DUP_ENTRY') {
 
-    }
+  } catch (er) {
     return helper.getErrorResponse(false, "Internal error. Please contact Administration", er.message);
   }
 }
@@ -2316,7 +2314,7 @@ async function getUnAcknoEvent(page, event) {
     JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
     LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id JOIN eventuser eu ON em.Event_ID = eu.Event_id AND eu.user_id = ${userid} LEFT JOIN eventlog el ON el.Event_ID = em.Event_ID LEFT JOIN whatsapplog wl ON wl.Event_id = em.Event_ID
     WHERE el.Event_ID IS NULL AND wl.Event_id IS NULL AND em.Event_Name NOT LIKE 'Tampering%' AND em.Event_Name NOT LIKE 'HDD%' AND em.Event_Name NOT LIKE 'Video%' 
-    AND em.Event_Name NOT LIKE 'FULL%' AND em.Event_Name NOT LIKE 'Device%' ORDER BY em.Row_updated_date DESC LIMIT ${offset}, ${config.eventlistpage}`;
+    AND em.Event_Name NOT LIKE 'FULL%' AND em.Event_Name NOT LIKE 'Device%' ORDER BY em.Row_updated_date DESC `;
 
     const rows = await db.query(sql);
     const data = helper.emptyOrRows(rows);
@@ -3699,7 +3697,7 @@ async function GetUserReport(page,event){
     const startDay = helper.formatDate(startTime, 'yyyyMMdd');
     const endDay = helper.formatDate(endTime, 'yyyyMMdd');
     
-    let eventTable, logTable, whatsappTable, eventuserstatus, eventstatus;
+    let eventTable, logTable, whatsappTable, eventaistatus, eventuserstatus, eventstatus;
     
     if (startDay === endDay) {
       // Single day
@@ -3816,29 +3814,31 @@ async function GetUserReport(page,event){
   if(querydata.filtertype == 'all'){
     sql = `SELECT em.Event_ID,em.Event_Name,bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime,em.Alertmessage,em.IsHumanDetected,
     cm.camera_id,cm.camera_name,dm.device_name,dm.IP_Domain,dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID,  dm.device_id, dt.Dept_name,dt.Dept_Location, 
-    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status,CASE WHEN el.Event_ID IS NOT NULL OR wl.Event_ID IS NOT NULL THEN 'Acknowledged' 
+    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status, MIN(es.detected_file) AS imagepath,CASE WHEN el.Event_ID IS NOT NULL OR wl.Event_ID IS NOT NULL THEN 'Acknowledged' 
     ELSE 'Unacknowledged' END AS eventstatus, MAX(el.feedback) AS feedback,MAX(el.Row_upd_date) Acknowleged_time,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status FROM ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id
     JOIN deptmaster dt ON dt.dept_id = dm.dept_id LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id
-    LEFT JOIN ${logTable} el ON el.event_id = em.Event_ID LEFT JOIN ${whatsappTable} wl ON wl.Event_id = em.Event_ID
-    JOIN ${eventuserstatus} eu ON eu.Event_ID = em.Event_ID WHERE eu.user_id = ${querydata.userid} and em.enddate BETWEEN '${querydata.starttime}' and '${querydata.endtime}'  GROUP BY em.Event_ID LIMIT ${offset}, ${config.listPerPage}`;
+    LEFT JOIN ${eventaistatus} es ON es.event_id = em.Event_ID LEFT JOIN ${logTable} el ON el.event_id = em.Event_ID LEFT JOIN ${whatsappTable} wl ON wl.Event_id = em.Event_ID
+    JOIN ${eventuserstatus} eu ON eu.Event_ID = em.Event_ID WHERE em.enddate BETWEEN '${querydata.starttime}' and '${querydata.endtime}' AND eu.user_id = ${querydata.userid} GROUP BY em.Event_ID LIMIT ${offset}, ${config.listPerPage}`;
   }else if(querydata.filtertype == 'unacknowledged'){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-     dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+     dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.branch_id siteid,bm.contact_person, cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status FROM ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
-    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id WHERE em.Event_ID NOT IN (SELECT el.Event_ID FROM ${logTable} el) AND em.Event_ID NOT IN (SELECT wl.Event_id FROM ${whatsappTable} wl) AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
+    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN (SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} es GROUP BY Event_ID
+    ) ep ON ep.Event_ID = em.Event_ID WHERE em.Event_ID NOT IN (SELECT el.Event_ID FROM ${logTable} el) AND em.Event_ID NOT IN (SELECT wl.Event_id FROM ${whatsappTable} wl) AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
     WHERE eu.user_id = ${querydata.userid}) AND (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
   }else if(querydata.filtertype == 'acknowledged'){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage,em.IsHumanDetected,
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain,dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name,
-    dt.Dept_Location,  dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name, bm.site_starttime Notifytime,bm.branch_id siteid, bm.contact_person,cm.Camera_Status, el.feedback,el.Row_upd_date Acknowledged_time,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+    dt.Dept_Location,  dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3,bm.Branch_name, bm.site_starttime Notifytime,bm.branch_id siteid, bm.contact_person,cm.Camera_Status, ep.imagepath, el.feedback,el.Row_upd_date Acknowledged_time,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status
     FROM  ${eventTable}  em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id
     LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id
+    LEFT JOIN (SELECT Event_ID, MIN(eventpath) AS imagepath FROM ${eventstatus} es GROUP BY Event_ID) ep ON ep.Event_ID = em.Event_ID
     JOIN ${logTable} el ON el.event_id = em.Event_ID WHERE EXISTS (SELECT 1 FROM ${eventuserstatus} eu WHERE eu.Event_id = em.Event_ID AND eu.user_id = ${querydata.userid}) and 
     (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
   }else if(querydata.filtertype == 'whatsapp'){
@@ -3853,22 +3853,24 @@ async function GetUserReport(page,event){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date, DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
      cm.camera_id, cm.camera_name, dm.device_name,dm.IP_Domain, dm.RTSP_port, dm.IP_port,dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id,dt.Dept_name, dt.Dept_Location, 
      dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 AS Userrole1, 
-     dc.User_role2 AS Userrole2, dc.User_role3 AS Userrole3, bm.Branch_name,bm.site_starttime AS Notifytime,bm.contact_person,bm.branch_id AS siteid, cm.Camera_Status,
+     dc.User_role2 AS Userrole2, dc.User_role3 AS Userrole3, bm.Branch_name,bm.site_starttime AS Notifytime,bm.contact_person,bm.branch_id AS siteid, cm.Camera_Status, ep.imagepath,
      CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id AND status = 1 AND ECStype = 'Two way') THEN TRUE ELSE FALSE 
      END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id  AND status = 1 AND ECStype = 'PA system') THEN TRUE ELSE FALSE 
      END AS oneway_status,el.feedback, el.Row_upd_date AS Acknowledged_time FROM ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id
      JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN 
-     branchmaster bm ON bm.branch_id = dt.branch_id
+     branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN 
+    ( SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} es GROUP BY  Event_ID) ep ON ep.Event_ID = em.Event_ID
     LEFT JOIN ${logTable} el ON el.Event_id = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_id FROM ${whatsappTable} wl)AND em.Event_ID IN ( SELECT eu.Event_id 
     FROM ${eventuserstatus} eu WHERE eu.user_id = ${querydata.userid}) AND em.Row_updated_date BETWEEN '${querydata.starttime}' AND '${querydata.endtime}'
     GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage};`
   }else if(querydata.filtertype == 'ai'){
     sql = `SELECT em.Event_ID, em.Event_Name, bm.whatsappgroupname, em.Row_updated_date,DATE_FORMAT(em.enddate, '%Y-%m-%d %H:%i:%s') AS eventtime, em.Alertmessage, em.IsHumanDetected, 
     cm.camera_id, cm.camera_name, dm.device_name, dm.IP_Domain, dm.RTSP_port, dm.IP_port, dm.IP_Uname, dm.IP_Pwd, dm.short_name, dm.SDK_ID, dm.device_id, dt.Dept_name, dt.Dept_Location, 
-    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.contact_person, bm.branch_id siteid,cm.Camera_Status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
+    dc.Name1,dc.Name2,dc.Name3, dc.Contact_mobile1, dc.Contact_mobile2, dc.Contact_mobile3, dc.Contact_Email1, dc.Contact_Email2, dc.Contact_Email3,dc.User_role1 Userrole1, dc.User_role2 Userrole2, dc.User_role3 Userrole3, bm.Branch_name,bm.site_starttime Notifytime,bm.contact_person, bm.branch_id siteid,cm.Camera_Status, ep.imagepath,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'Two way') THEN TRUE
     ELSE FALSE END AS twoway_status,CASE WHEN EXISTS (SELECT 1 FROM ecsmaster ec WHERE ec.site_id = bm.branch_id and status = 1 and ECStype = 'PA system') THEN TRUE
     ELSE FALSE END AS oneway_status,el.feedback, el.Row_upd_date AS Acknowledged_time FROM  ${eventTable} em JOIN cameramaster cm ON cm.camera_id = em.analyticsource_id JOIN devicemaster dm ON dm.device_id = cm.device_id JOIN deptmaster dt ON dt.dept_id = dm.dept_id 
-    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id JOIN ${logTable} el ON el.Event_ID = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_ID FROM ${logTable} wl where wl.feedback like '%AI%') AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
+    LEFT JOIN deptcontacts dc ON dc.dept_id = dt.dept_id JOIN branchmaster bm ON bm.branch_id = dt.branch_id LEFT JOIN (SELECT Event_ID, MIN(detected_file) AS imagepath FROM ${eventaistatus} eai GROUP BY eai.Event_ID
+    ) ep ON ep.Event_ID = em.Event_ID JOIN ${logTable} el ON el.Event_ID = em.Event_ID WHERE em.Event_ID IN (SELECT wl.Event_ID FROM ${logTable} wl where wl.feedback like '%AI%') AND em.Event_ID IN (SELECT eu.Event_id FROM ${eventuserstatus} eu 
     WHERE eu.user_id = ${querydata.userid}) and (em.Row_updated_date between '${querydata.starttime}' and '${querydata.endtime}') GROUP BY em.Event_ID ORDER BY em.Row_updated_date LIMIT ${offset}, ${config.listPerPage}`;
   }else{
     return helper.getErrorResponse(false,"Unknown filter type.","Please choose the valid filter type",secret);
@@ -4299,7 +4301,7 @@ async function GetEventCount(event){
     }
     var secret=event.STOKEN.substring(0,16);
    const sql = await db.query(`SELECT um.username,COALESCE(eu.totalevents, 0) AS totalevents,COALESCE(el.ackevent, 0) AS ackevent,COALESCE(ua.unackevent, 0) AS unackevent,
-   COALESCE(wl.whatsapp, 0) AS whatsapp FROM usermaster um LEFT JOIN (SELECT eu.user_id, COUNT(eu.event_id) AS totalevents FROM eventuser eu
+   COALESCE(wl.whatsapp, 0) AS whatsapp FROM usermaster um LEFT JOIN (SELECT eu.user_id, COUNT(DISTINCT eu.event_id) AS totalevents FROM eventuser eu
    INNER JOIN eventmaster em ON eu.event_id = em.event_id GROUP BY eu.user_id) eu ON eu.user_id = um.user_id LEFT JOIN ( SELECT el.created_by AS user_id,
    COUNT(DISTINCT el.event_id) AS ackevent FROM eventlog el INNER JOIN eventmaster em ON el.event_id = em.event_id GROUP BY el.created_by) el ON el.user_id = um.user_id
    LEFT JOIN (SELECT eu.user_id,COUNT(DISTINCT eu.event_id) AS unackevent FROM eventuser eu INNER JOIN eventmaster em ON eu.event_id = em.event_id
@@ -4837,21 +4839,17 @@ async function userDailyReport(event){
 var sql;
 
   try{
-      sql = await db.query(`SELECT um.user_id,um.username,COALESCE(ul.first_logged_in, 'N/A') AS first_login_time,COALESCE(ul1.last_logged_out, 'N/A') AS last_logout_time,
-      COALESCE(SUM(ub.break_duration_minutes), 0) AS availed_break_time,CASE 
-      WHEN TIME(ul.first_logged_in) BETWEEN '17:00:00' AND '19:00:00' THEN '01:30:00'
-      ELSE '01:00:00'
-  END AS allowed_break_time,COALESCE(eu.totalevent, 0) AS total_events,COALESCE(el.ackevent, 0) AS 
-      acknowledged_events,(COALESCE(eu.totalevent, 0) - COALESCE(el.ackevent, 0)) AS unacknowledged_events,COALESCE(wl.whatsapp, 0) AS whatsapp_events FROM usermaster um LEFT JOIN (
-      SELECT eul.user_id, COUNT(DISTINCT eul.event_id) AS totalevent FROM ${eventuserstatus} eul WHERE eul.Row_updated_date BETWEEN ? AND ? GROUP BY eul.user_id ) eu ON eu.user_id = 
-      um.user_id LEFT JOIN (SELECT ell.Created_by AS user_id, COUNT(DISTINCT ell.event_id) AS ackevent FROM ${logTable} ell WHERE ell.Row_upd_date BETWEEN ? AND ?
-      GROUP BY ell.Created_by) el ON el.user_id = um.user_id LEFT JOIN (SELECT wbl.user_id, COUNT(DISTINCT wbl.event_id) AS whatsapp FROM ${whatsappTable} wbl
-      WHERE wbl.Row_updated_date BETWEEN ? AND ? GROUP BY wbl.user_id ) wl ON wl.user_id = um.user_id LEFT JOIN ( SELECT user_id, MIN(logged_in) AS first_logged_in FROM userlog WHERE 
-      deleted_flag = 0 AND logged_in >= ? GROUP BY user_id) ul ON ul.user_id = um.user_id LEFT JOIN ( SELECT user_id, MAX(logged_out) AS last_logged_out FROM userlog WHERE 
-      deleted_flag = 0 AND logged_out <= ? GROUP BY user_id) ul1 ON ul1.user_id = um.user_id
-      LEFT JOIN (SELECT ubl.user_id, SUM(TIMESTAMPDIFF(MINUTE, ubl.Break_time, ubl.Break_finished_time)) AS break_duration_minutes FROM ${userbreaks} ubl WHERE ubl.Row_updated_date >= ?
-      GROUP BY ubl.user_id) ub ON ub.user_id = um.user_id WHERE um.user_design IN ('executive', 'supervisor') AND um.status = 1 AND um.Customer_ID = 0
-      AND eu.totalevent > 0 GROUP BY um.user_id, um.username, ul.first_logged_in, ul1.last_logged_out;`,[startTime,endTime,startTime,endTime,startTime,endTime,startTime,endTime,startTime]);
+     sql = await db.query(`SELECT um.user_id,um.username,COALESCE(ul.first_logged_in, 'N/A') AS first_login_time,COALESCE(ul.last_logged_out, 'N/A') AS last_logout_time,
+     COALESCE(SUM(ub.break_duration_minutes), 0) AS availed_break_time,'01:00:00' AS allowed_break_time,COALESCE(eu.totalevent, 0) AS total_events,COALESCE(el.ackevent, 0) AS 
+     acknowledged_events,(COALESCE(eu.totalevent, 0) - COALESCE(el.ackevent, 0)) AS unacknowledged_events,COALESCE(wl.whatsapp, 0) AS whatsapp_events FROM usermaster um LEFT JOIN (
+     SELECT eul.user_id, COUNT(DISTINCT eul.event_id) AS totalevent FROM ${eventuserstatus} eul WHERE eul.Row_updated_date BETWEEN ? AND ? GROUP BY eul.user_id ) eu ON eu.user_id = 
+     um.user_id LEFT JOIN (SELECT ell.Created_by AS user_id, COUNT(DISTINCT ell.event_id) AS ackevent FROM ${logTable} ell WHERE ell.Row_upd_date BETWEEN ? AND ?
+     GROUP BY ell.Created_by) el ON el.user_id = um.user_id LEFT JOIN (SELECT wbl.user_id, COUNT(DISTINCT wbl.event_id) AS whatsapp FROM ${whatsappTable} wbl
+     WHERE wbl.Row_updated_date BETWEEN ? AND ? GROUP BY wbl.user_id ) wl ON wl.user_id = um.user_id LEFT JOIN ( SELECT user_id, MIN(logged_in) AS first_logged_in, MAX(logged_out) AS 
+     last_logged_out FROM userlog WHERE deleted_flag = 0 AND logged_in >= ? AND (logged_out <= ? OR logged_out IS NULL) GROUP BY user_id) ul ON ul.user_id = um.user_id
+     LEFT JOIN (SELECT ubl.user_id, SUM(TIMESTAMPDIFF(MINUTE, ubl.Break_time, ubl.Break_finished_time)) AS break_duration_minutes FROM ${userbreaks} ubl WHERE ubl.Row_updated_date >= ?
+     GROUP BY ubl.user_id) ub ON ub.user_id = um.user_id WHERE um.user_design IN ('executive', 'supervisor') AND um.status = 1 AND um.Customer_ID = 0
+     AND eu.totalevent > 0 GROUP BY um.user_id, um.username, ul.first_logged_in, ul.last_logged_out;`,[startTime,endTime,startTime,endTime,startTime,endTime,startTime,endTime,startTime]);
   }catch(er){
     return helper.getErrorResponse(false,"There is no Report to show",er.message,secret);
   }
